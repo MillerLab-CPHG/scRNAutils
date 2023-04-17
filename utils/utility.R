@@ -179,6 +179,7 @@ calc_sil_scores = function(seurat_obj,
   sil_scores_list = list()
   
   # Create distance matrix from seurat obj reduced dims embedding 
+  message("Creating distance matrix from PCA embeddings...")
   dist_matrix = dist(x = Seurat::Embeddings(object = seurat_obj[["pca"]])[, 1:30])
   
   # Cluster data with each of the resolutions provided
@@ -186,8 +187,11 @@ calc_sil_scores = function(seurat_obj,
     seurat_obj = FindClusters(seurat_obj, resolution = clustering_res[i])
     
   clusters = seurat_obj$seurat_clusters
+  
+  message("Calculating silhouette scores for defined resolutions...")
   sil = silhouette(x = as.numeric(x = as.factor(x = clusters)), 
                    dist = dist_matrix)
+  
   # Add silhouette scores back into seurat obj metadata
   #seurat_obj$silhouette_score = sil[, 3]
   sil_df = data.frame(cluster=sil[, 1],
@@ -202,7 +206,7 @@ calc_sil_scores = function(seurat_obj,
   # Put sil scores for all resolutions into a single df
   resolutions_sil_df = data.table::rbindlist(sil_scores_list, 
                                              idcol = TRUE)
-  return(sil_df)
+  return(resolutions_sil_df)
 }
 
 

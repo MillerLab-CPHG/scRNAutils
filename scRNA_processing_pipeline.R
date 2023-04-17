@@ -8,19 +8,27 @@ library(cluster)
 # Write a function that will do all of the scRNA-seq QC and processing
 # for each sequencing library. We should make it as flexible as possible
 
-# What are the inputs we should use? Start with a count matrix or a h5 file. 
-# Args count_matrix count matrix required as initial input. As of now, make it accept 
+# What are the inputs we should use? Start with a count matrix. 
+# Args count_matrix sparse count matrix required as initial input. As of now, make it accept 
 # a filtered_feature_bc_matrix with a Seurat::Read10X or a txt file. Maybe this is better
 # handled out of the function since we'd also be dealing with h5 files. Maybe we can do this later
 # but not priority right now
 # Args library_id A character indicating the id for the library
+# Args min_res A numeric indicating lower boundary for sil analysis
+# Args max_res A numeric indicating upper boundary for sil analysis
+# Args dbl_remove_iter A numeric indicating how many iterations we need to run for getting consensus doublets 
 
 
-doitall = function(counts_matrix, library_id, study_id) {
+doitall = function(counts_matrix, library_id, study_id,
+                   min_res=0.3, max_res=1.9, dbl_remove_iter=3) {
   
-  # Load data 
+  # Validate counts matrix input
   if (!is(counts_matrix, "dgCMatrix")) {
-    stop("Your counts matrix should be provided in sparse format (dgCMatrix)!")
+    if(is(counts_matrix, "Matrix")) {
+      counts_matrix = as.sparse(counts_matrix)
+    } else {
+      stop("Your counts matrix should be provided in matrix or sparse matrix format (dgCMatrix)!")
+    }
   }
   
   # How many rows and columns do this matrix have?
@@ -32,13 +40,13 @@ doitall = function(counts_matrix, library_id, study_id) {
   # Keep genes expressed in at least 10 cells and cells with more than 200 expressed genes
   seurat_obj = Seurat::CreateSeuratObject(counts = counts_matrix,
                                           project = library_id,
-                                          min.cells = 10
+                                          min.cells = 10,
                                           min.features = 200)
   
   # Do a first round of clustering for doublet removal
   # Set the seurat_filter arg to FALSE. We dont need to remove low quality cells
   # for this first round of clustering 
-  seurat_obj = Seurat_SCT_process(rpe004_seurat_sct, 
+  seurat_obj = Seurat_SCT_process(seurat_obj = seurat_obj, 
                                   seurat_filter = FALSE,
                                   sample_id = library_id, 
                                   study_name = study_id)
@@ -47,18 +55,50 @@ doitall = function(counts_matrix, library_id, study_id) {
   # to determine best parameters before and after removing doublets. This might be important
   # since the actual resolution will depend on the number of cells in the library
   
-  # Define range of resolutions to test and get PCA embeddings
-  clustering_res = seq(0.3, 1.9, by=0.1)
+  # Define range of resolutions to test, create euclidean distance matrix and calculate silhouette coeffs
+  # Min and max resolutions default to 0.3 and 1.9 but can be overwritten to any values really
+  clustering_res = seq(min_res, max_res, by=0.1)
   prefiltered_sil_scores = calc_sil_scores(seurat_obj, clustering_res)
   
   # Get mean sil_scores per resolution and select the maximum
-  # Need to define the actual colname for the resolution vars
   avg_sil_scores = prefiltered_sil_scores %>%
-    group_by(res) %>%
+    group_by(.id) %>%
     summarize(mean_sil = mean(sil_width))
-  max_sil_res = avg_sil_scores[which.max(avg_sil_scores$mean_sil), 1]
+  max_sil_res = as.character(avg_sil_scores[which.max(avg_sil_scores$mean_sil), 1])
+  max_sil_res = as.numeric(str_split(max_sil_res, "_")[[1]][2])
+  message("The maximum avg sil score for prefiltered dataset is ", max_sil_res)
   
-
+  
+  # Now we use the max avg sil value to cluster data 
+  seurat_obj =  FindClusters(seurat_obj, resolution = max_sil_res)
+  
+  ######################################################################
+  # STEP 3: Once we have defined our clusters, we can proceed to remove doublets with the wrapper
+  # we wrote in the utility script. Consensus doublets are obtained from however many iterations
+  # the user defines. Deafult number of iterations is 3. 
+  message("Finding doublets...")
+  doublet_ids = scDblFinder_clusters(seurat_obj = seurat_obj, 
+                                     nrep = dbl_remove_iter )
+  message("There are ", length(doublet_ids), "from ", 
+          dbl_remove_iter, "iterations of scDblFinder")
+  
+  # First filtering step: remove consensus doublet IDs
+  singlets = setdiff(colnames(counts_matrix), doublet_ids)
+  message("There are ", lenght(singlets), "cells remaining after removing doublets")
+  
+  # Create a new seurat obj keeping only singlets
+  seurat_obj = CreateSeuratObject(counts = counts_matrix[, singlets],
+                                  project = library_id,
+                                  min.cells = 10,
+                                  min.features = 200)
+  
+  # Clean newly filtered counts matrix from ambient RNA using the decontX wrapper
+  # within the utility script
+  message("Removing ambient RNA...")
+  seurat_obj = decontX_remove(seurat_obj = seurat_obj)
+  
+  return(seurat_obj)
+  
 }
 
 
