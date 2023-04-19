@@ -209,6 +209,17 @@ calc_sil_scores = function(seurat_obj,
   return(resolutions_sil_df)
 }
 
+# This is a helper function to get the max sil score from the above calculations
+max_avg_sil_score = function(sil_scores_df) {
+  avg_sil_scores = sil_scores_df %>%
+    group_by(.id) %>%
+    summarize(mean_sil = mean(sil_width))
+  max_sil_res = as.character(avg_sil_scores[which.max(avg_sil_scores$mean_sil), 1])
+  max_sil_res = as.numeric(str_split(max_sil_res, "_")[[1]][2])
+  return(max_sil_res)
+  
+  }
+
 
 
 # This is a handy function to gene human homologs for mice genes
