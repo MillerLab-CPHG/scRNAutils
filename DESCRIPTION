@@ -8,6 +8,7 @@ Depends:
     R (>= 4.0),
     Seurat,
     tidyverse,
+    scDblFinder, 
     celda,
     cluster
 Imports:

@@ -2,7 +2,7 @@
 % Please edit documentation in R/scRNA_processing_pipeline.R
 \name{doitall}
 \alias{doitall}
-\title{A function that will handle QC (doublet and ambient RNA removal) and processing for individual scRNA libraries}
+\title{Process scRNA libraries}
 \usage{
 doitall(
   counts_matrix,
@@ -10,7 +10,14 @@ doitall(
   study_id,
   min_res = 0.3,
   max_res = 1.9,
-  dbl_remove_iter = 3
+  dbl_remove_iter = 3,
+  genes_of_interest = NULL,
+  min_UMI = 200,
+  max_UMI = 20000,
+  min_features = 200,
+  max_features = 4000,
+  max_mt_percent = 10,
+  max_hb_percent = 5
 )
 }
 \arguments{
@@ -21,6 +28,8 @@ doitall(
 \item{max_res}{A numeric indicating upper boundary for sil analysis}
 
 \item{dbl_remove_iter}{A numeric indicating how many iterations we need to run for getting consensus doublets}
+
+\item{genes_of_interest}{A character vector with genes of interest for checking expression before and after QC.}
 
 \item{count_matrix}{sparse count matrix required as initial input. As of now, make it accept 
 a filtered_feature_bc_matrix with a Seurat::Read10X or a txt file. Maybe this is better
