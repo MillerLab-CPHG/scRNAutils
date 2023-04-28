@@ -1,0 +1,140 @@
+---
+title: "scRNA_pipeline_intro"
+author: "Jose Verdezoto Mosquera"
+date:  "`r Sys.Date()`"
+output:
+  BiocStyle::html_document:
+    toc: true
+---
+
+```{r setup, echo=FALSE}
+# These settings make the vignette prettier
+knitr::opts_chunk$set(results="hld", collapse = FALSE, message=FALSE, 
+                      warning = FALSE)
+```
+
+# Introduction to the scRNAutils pipeline 
+
+The main goal of this tutorial is to show usage of the scRNA processing pipeline included in this package. To get started we need to load the following packages
+
+
+## Installing scRNA utils
+
+Install `scRNAutils` from Github as follows
+```{r, install, eval=FALSE}
+devtools::install_github("MillerLab-CPHG/scRNAutils")
+```
+
+Now we need to install the package along with the other dependencies
+
+```{r eval=FALSE}
+library(Seurat)
+library(scDblFinder)
+library(celda)
+library(tidyverse)
+library(cluster)
+library(broom)
+library(stats)
+library(data.table)
+library(ggsci)
+```
+
+## Load the input datasets
+
+The pipeline, as currently written, is a single function that takes care of the QC, normalization, dimensionality reduction and clustering. Broadly this is the implemented workflow:
+
+  1. Create Seurat object and do one reound of clustering to gel partitions needed for doublet removal.
+  2. Remove doublets by performing n number of doublet identification iterations (n defaults to 3 but can be any number really)
+  3. Once doublets have been removed, we use a decontX wrapper included in the package to remove ambient RNA. This wrapper takes a Seurat object as input and           returns a Seurat object with cleaned raw counts within the RNA assay.
+  4. Now the user can provide thresholds for number of UMIs, unique genes expressed and percentage of reads mapped to mithochondrial and hemoglobin genes. This         will be the last stage of QC. 
+  5. After QC, data will be normalized using SCTransform.
+  6. Dimensionality reduction will be done with PCA and UMAP.
+  7. Now clusters can be identified. This step uses the user-provided range of clustering resolutions and calculate avergae silhouette scores for each of them.
+  8. We then extract the resolution with the maximum average silhouette score and perform Louvain clustering to get the final clusters.  
+
+It's important to note that the pipeline currently takes a count matrix as input. The count matrix needs to be in sparse format. This is required by the user but we might eventually handle conversion to sparse matrix format indide of the function. 
+
+``` {r}
+# Load the package
+library(scRNAutils)
+
+# Load example data
+cheng_rca_seurat = read_rds("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/scRNA_raw_matrices/Cheng_human_RCA_scRNA_data/RCA.rds")
+
+# Let's try to split this dataset into 6 individual libraries
+cheng_rca_seurat_list = Seurat::SplitObject(cheng_rca_seurat, 
+                                            split.by = "Pt")
+
+# We need to get the raw count matrices from each patient
+extract_raw_counts = function(seurat_obj) { 
+  return(seurat_obj@assays$RNA@counts)
+}
+raw_matrices_list = lapply(cheng_rca_seurat_list, 
+                           extract_raw_counts)
+
+# Now we get one of the matrices to test the pipeline
+cheng_test_library = raw_matrices_list[[1]]
+
+
+```
+
+# Run the pipeline
+
+The entire pipeline can be run in a single function. We just need to add some arguments 
+
+``` {r, include=FALSE}
+
+cheng_pipeline_outs = doitall(counts_matrix = cheng_test_library,
+                                          study_id = "Cheng_et_al", 
+                                          library_id = "cheng_library_1", 
+                                          min_res = 0.3, 
+                                          max_res = 1.6, 
+                                          dbl_remove_iter = 3, 
+                                          genes_of_interest = c("MYH11", "LMOD1", "LTBP1", "CRTAC1", "IGFBP3", "FN1")
+                                          )
+
+```
+
+The pipeline output consists of a list with 6 items:
+  1. The processed Seurat object.
+  2. Consensus doublet cell barcodes identified by n iterations defined by the user. 
+  3. UMAP of clusters before QC.
+  4. UMAP of clusters after QC.
+  5. Gene expression UMAPs before QC, including genes defined by the user in the genes_of_interest argument
+  6. Gene expression UMAPs after QC, including genes defined by the user in the genes_of_interest argument
+  
+We can explore clustering results as follows
+
+```{r, fig.cap="Clusters before and after QC", fig.small=TRUE}
+
+# Plot cluster UMAPs comparing data before and after QC
+before_qc_clusters = cheng_pipeline_outs$before_qc_clusters + ggtitle ("Clusters before QC") + custom_theme() + miller_discrete_scale()
+after_qc_clusters = cheng_pipeline_outs$after_qc_clusters + ggtitle("Clusters after QC") + custom_theme() + miller_discrete_scale()
+cowplot::plot_grid(before_qc_clusters, after_qc_clusters)
+
+
+```
+
+We can also take a look at how gene expression looks after removing ambient RNA
+
+```{r, fig.cap="Gene expression for user defined genes before QC", fig.small=TRUE}
+
+# Extract gene expression UMAPs from the pipeline output
+before_qc_feature_list = cheng_pipeline_outs$before_qc_features
+after_qc_feature_list = cheng_pipeline_outs$after_qc_features
+
+# Plot gene expression before QC
+cowplot::plot_grid(plotlist = before_qc_feature_list)
+
+
+```
+
+Now let's take a look at how gene expression looks after QC
+
+```{r, fig.cap="Gene expression for user defined genes before QC", fig.small=TRUE}
+
+cowplot::plot_grid(plotlist = after_qc_feature_list)
+
+```
+
+

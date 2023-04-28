@@ -19,11 +19,11 @@ scDblFinder_clusters = function(seurat_obj, nrep,
   
   # If we have more than one sample in a dataset, use the samples parameter
   if (multisample_dataset) {
-    sample_sce_dbl = replicate(nrep, scDblFinder(sample_sce,
+    sample_sce_dbl = replicate(nrep, scDblFinder::scDblFinder(sample_sce,
                                                  samples = sample_ids,
                                                  clusters = "seurat_clusters"))
   } else {
-    sample_sce_dbl = replicate(nrep, scDblFinder(sample_sce, 
+    sample_sce_dbl = replicate(nrep, scDblFinder::scDblFinder(sample_sce, 
                                                  clusters = "seurat_clusters"))
   }
   # Convert back to seurat objs
@@ -66,7 +66,7 @@ decontX_remove = function(seurat_obj) {
 #' @param max_features A numeric indicating the maximum number of genes cells should express to be included.
 #' @param max_mt_percent A numeric indicating the max percentage of reads mapped to the mito genome. 
 #' @param max_hb_percent A numeric indicating the max percentage of reads mapped to hemoglobin genes. 
-#' @param sample_id A character indicating name of the sample.
+#' @param library_id A character indicating name of the sample.
 #' @param study_name A character indicating name of the study. 
 #' @param arterial_origin A character indicating arterial bed of the library.
 #' @param disease_status A character indicating the disease status of the library (e.g., non-lesion, lesion).
@@ -79,14 +79,14 @@ Seurat_SCT_process = function(seurat_obj,
                               max_features=4000,
                               max_mt_percent=10,
                               max_hb_percent=5,
-                              sample_id, 
+                              library_id, 
                               study_name, 
                               arterial_origin=NULL, 
                               sample_disease_status=NULL,
                               sex=NULL){
   
   # Define sample and study IDs as core metadata values. 
-  seurat_obj$sample = sample_id
+  seurat_obj$sample = library_id
   seurat_obj$study = study_name
   
   # Vascular bed and sample disease status can be kept as optional metadata values.
@@ -155,7 +155,7 @@ calc_sil_scores = function(seurat_obj,
   
   # Create distance matrix from seurat obj reduced dims embedding 
   message("Creating distance matrix from PCA embeddings...")
-  dist_matrix = dist(x = Seurat::Embeddings(object = seurat_obj[["pca"]])[, 1:30])
+  dist_matrix = stats::dist(x = Seurat::Embeddings(object = seurat_obj[["pca"]])[, 1:30])
   
   # Cluster data with each of the resolutions provided
   for (i in seq_along(clustering_res)) { 
@@ -164,7 +164,7 @@ calc_sil_scores = function(seurat_obj,
     clusters = seurat_obj$seurat_clusters
     message("Calculating silhouette scores for defined resolutions...")
     
-    sil = silhouette(x = as.numeric(x = as.factor(x = clusters)), 
+    sil = cluster::silhouette(x = as.numeric(x = as.factor(x = clusters)), 
                      dist = dist_matrix)
     # Add silhouette scores back into seurat obj metadata
     #seurat_obj$silhouette_score = sil[, 3]
@@ -228,7 +228,8 @@ calc_gene_cors = function(cell_types, metadata_df,
   cors_list = apply(reshaped_matrix, 2, 
                     function(x){cor.test(target_gene_vector, x,
                                          method = cor_method)})
-  cors_list_tidy = lapply(cors_list, tidy)
+  cors_list_tidy = lapply(cors_list, 
+                          broom::tidy)
   cors_df =  data.table::rbindlist(cors_list_tidy)
   gene_names = names(cors_list)
   cors_df_genes = cors_df %>%

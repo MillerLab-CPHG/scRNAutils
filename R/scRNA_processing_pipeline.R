@@ -1,17 +1,3 @@
-library(Seurat)
-library(tidyverse)
-library(data.table)
-library(scDblFinder)
-library(celda)
-library(sctransform)
-library(cluster)
-
-
-# For now we need to source the utily script to load our own helper functions
-# source("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/project_scripts/scRNAutils/R/utility.R")
-# source("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/project_scripts/scRNAutils/R/data_analysis.R")
-# source("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/project_scripts/scRNAutils/R/data_manipulation.R")
-# source("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/project_scripts/scRNAutils/R/visualization.R")
 
 
 #' Process scRNA libraries 
@@ -22,18 +8,27 @@ library(cluster)
 #' a filtered_feature_bc_matrix with a Seurat::Read10X or a txt file. Maybe this is better
 #' handled out of the function since we'd also be dealing with h5 files. Maybe we can do this later
 #' but not priority right now
-#' @param library_id A character indicating the id for the library
+#' @param library_id A character indicating the id for the library.
+#' @param study_name A character string indicating the study that generated the data.
 #' @param min_res A numeric indicating lower boundary for sil analysis
 #' @param max_res A numeric indicating upper boundary for sil analysis
 #' @param dbl_remove_iter A numeric indicating how many iterations we need to run for getting consensus doublets
-#' @param genes_of_interest A character vector with genes of interest for checking expression before and after QC. 
+#' @param genes_of_interest A character vector with genes of interest for checking expression before and after QC.
+#' @param min_UMI A numeric indicating min number of UMIs to keep.
+#' @param max_UMI A numeric indicating max number of UMIs to keep.
+#' @param min_features A numeric indicating the minimum number of genes cells should express to be included.
+#' @param max_features A numeric indicating the maximum number of genes cells should express to be included.
+#' @param max_mt_percent A numeric indicating the max percentage of reads mapped to the mito genome. 
+#' @param max_hb_percent A numeric indicating the max percentage of reads mapped to hemoglobin genes. 
 #' @return A list where the first object is the processed Seurat obj and remaining objects are UMAP plots before and after QC. 
 #' @export
 #' @examples 
 #' seurat_outs = doitall(counts_matrix, "rpe004", "pan_et_al")
 
-doitall = function(counts_matrix, library_id, study_id,
-                   min_res=0.3, max_res=1.9, dbl_remove_iter=3,
+doitall = function(counts_matrix, library_id, study_name,
+                   min_res=0.3, 
+                   max_res=1.9, 
+                   dbl_remove_iter=3,
                    genes_of_interest=NULL,
                    min_UMI=200 ,
                    max_UMI=20000,
@@ -43,8 +38,8 @@ doitall = function(counts_matrix, library_id, study_id,
                    max_hb_percent=5) {
   
   # Validate counts matrix input
-  if (!is(counts_matrix, "dgCMatrix")) {
-    if(is(counts_matrix, "Matrix")) {
+  if (!methods::is(counts_matrix, "dgCMatrix")) {
+    if(methods::is(counts_matrix, "Matrix")) {
       counts_matrix = as.sparse(counts_matrix)
     } else {
       stop("Your counts matrix should be provided in matrix or sparse matrix format (dgCMatrix)!. Got ", 
@@ -57,7 +52,7 @@ doitall = function(counts_matrix, library_id, study_id,
                 dim(counts_matrix)[2], "columns"))
   
   # Load genes for regressing out cell cycle variance
-  cc.genes.updated.2019
+  Seurat::cc.genes.updated.2019
   s.genes = cc.genes.updated.2019$s.genes
   g2m.genes = cc.genes.updated.2019$g2m.genes
   
@@ -74,8 +69,8 @@ doitall = function(counts_matrix, library_id, study_id,
   # for this first round of clustering 
   seurat_obj = Seurat_SCT_process(seurat_obj = seurat_obj, 
                                   seurat_filter = FALSE,
-                                  sample_id = library_id, 
-                                  study_name = study_id,
+                                  library_id = library_id, 
+                                  study_name = study_name,
                                   min_UMI = min_UMI,
                                   max_UMI = max_UMI,
                                   min_features = min_features,
@@ -144,8 +139,8 @@ doitall = function(counts_matrix, library_id, study_id,
   # nFeatures and percentage of reads mapped to mitochondrial genome. 
   seurat_obj = Seurat_SCT_process(seurat_obj = seurat_obj,
                                   seurat_filter = TRUE,
-                                  sample_id = library_id,
-                                  study_name = study_id,
+                                  library_id = library_id,
+                                  study_name = study_name,
                                   min_UMI = min_UMI,
                                   max_UMI = max_UMI,
                                   min_features = min_features,
