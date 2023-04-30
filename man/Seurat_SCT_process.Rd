@@ -13,10 +13,10 @@ Seurat_SCT_process(
   max_features = 4000,
   max_mt_percent = 10,
   max_hb_percent = 5,
-  sample_id,
-  study_name,
+  library_id,
+  study_id,
   arterial_origin = NULL,
-  sample_disease_status = NULL,
+  disease_status = NULL,
   sex = NULL
 )
 }
@@ -38,13 +38,15 @@ Set to FALSE in pre-processing round for doublet removal.}
 
 \item{max_hb_percent}{A numeric indicating the max percentage of reads mapped to hemoglobin genes.}
 
-\item{sample_id}{A character indicating name of the sample.}
-
-\item{study_name}{A character indicating name of the study.}
+\item{library_id}{A character indicating name of the sample.}
 
 \item{arterial_origin}{A character indicating arterial bed of the library.}
 
 \item{disease_status}{A character indicating the disease status of the library (e.g., non-lesion, lesion).}
+
+\item{sex}{A character string indicating sex of the subject.}
+
+\item{study_name}{A character indicating name of the study.}
 }
 \value{
 A seurat object that has been SCT normalized, nearest neighbors graph and UMAP embeddings.

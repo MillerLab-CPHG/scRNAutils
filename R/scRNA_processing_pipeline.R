@@ -20,12 +20,17 @@
 #' @param max_features A numeric indicating the maximum number of genes cells should express to be included.
 #' @param max_mt_percent A numeric indicating the max percentage of reads mapped to the mito genome. 
 #' @param max_hb_percent A numeric indicating the max percentage of reads mapped to hemoglobin genes. 
+#' @param arterial_origin A character string indicating vascualr bed of the data.
+#' @param disease_status A character string indicating disease status of the library (e.g., lesion vs non-lesion)
+#' @param sex A character string indicating sex of the subject. 
 #' @return A list where the first object is the processed Seurat obj and remaining objects are UMAP plots before and after QC. 
 #' @export
 #' @examples 
 #' seurat_outs = doitall(counts_matrix, "rpe004", "pan_et_al")
 
-doitall = function(counts_matrix, library_id, study_name,
+doitall = function(counts_matrix, 
+                   library_id, 
+                   study_id,
                    min_res=0.3, 
                    max_res=1.9, 
                    dbl_remove_iter=3,
@@ -35,15 +40,19 @@ doitall = function(counts_matrix, library_id, study_name,
                    min_features=200,
                    max_features=4000,
                    max_mt_percent=10,
-                   max_hb_percent=5) {
+                   max_hb_percent=5,
+                   arterial_origin=NULL,
+                   disease_status=NULL,
+                   sex=NULL) {
   
   # Validate counts matrix input
   if (!methods::is(counts_matrix, "dgCMatrix")) {
     if(methods::is(counts_matrix, "Matrix")) {
       counts_matrix = as.sparse(counts_matrix)
     } else {
-      stop("Your counts matrix should be provided in matrix or sparse matrix format (dgCMatrix)!. Got ", 
-           class(counts_matrix))
+      msg = paste("Your counts matrix should be provided in matrix or sparse matrix format (dgCMatrix)!. Got ", 
+                  class(counts_matrix))
+      stop(msg)
     }
   }
   
@@ -52,9 +61,9 @@ doitall = function(counts_matrix, library_id, study_name,
                 dim(counts_matrix)[2], "columns"))
   
   # Load genes for regressing out cell cycle variance
-  Seurat::cc.genes.updated.2019
-  s.genes = cc.genes.updated.2019$s.genes
-  g2m.genes = cc.genes.updated.2019$g2m.genes
+  #Seurat::cc.genes.updated.2019
+  #s.genes = cc.genes.updated.2019$s.genes
+  #g2m.genes = cc.genes.updated.2019$g2m.genes
   
   # QC (removal of doublets)
   # To do this we need to create a Seurat object and do a first round of clustering
@@ -70,13 +79,7 @@ doitall = function(counts_matrix, library_id, study_name,
   seurat_obj = Seurat_SCT_process(seurat_obj = seurat_obj, 
                                   seurat_filter = FALSE,
                                   library_id = library_id, 
-                                  study_name = study_name,
-                                  min_UMI = min_UMI,
-                                  max_UMI = max_UMI,
-                                  min_features = min_features,
-                                  max_features = max_features,
-                                  max_mt_percent = max_mt_percent,
-                                  max_hb_percent = max_hb_percent)
+                                  study_id = study_id)
   
   # How do we define the right clustering parameters? Maybe we need to calc sil scores
   # Define range of resolutions to test, create euclidean distance matrix and calculate silhouette coeffs
@@ -104,8 +107,7 @@ doitall = function(counts_matrix, library_id, study_name,
 
   ######################################################################
   # STEP 3: Once we have defined our clusters, we can proceed to remove doublets with the wrapper
-  # we wrote in the utility script. Consensus doublets are obtained from however many iterations
-  # the user defines. Default number of iterations is 3 but can set to whatever one desires. 
+  # we wrote in the utility script. 
   message("------------------
   Finding doublets...
   -------------------")
@@ -125,8 +127,7 @@ doitall = function(counts_matrix, library_id, study_name,
                                   min.features = 200)
   
   # Clean newly filtered counts matrix from ambient RNA using our own decontX wrapper
-  # within the utility script. Our wrapper returns a seurat object with a decontaminated
-  # raw counts matrix
+  # within the utility script. 
   message("---------------------------------------------------------
   Removing ambient RNA...because who doesn't like cleaner data? -
   ------------------------------------------------------------------")
@@ -135,18 +136,21 @@ doitall = function(counts_matrix, library_id, study_name,
   
   ##########################################################################
   # STEP4: Normalization and dimensionality reduction of cleaned counts matrix
-  # In this case, the matrix will be further filtered accroding to nUMIs,
+  # In this case, the matrix will be further filtered according to nUMIs,
   # nFeatures and percentage of reads mapped to mitochondrial genome. 
   seurat_obj = Seurat_SCT_process(seurat_obj = seurat_obj,
                                   seurat_filter = TRUE,
                                   library_id = library_id,
-                                  study_name = study_name,
+                                  study_id = study_id,
                                   min_UMI = min_UMI,
                                   max_UMI = max_UMI,
                                   min_features = min_features,
                                   max_features = max_features,
                                   max_mt_percent = max_mt_percent,
-                                  max_hb_percent = max_hb_percent)
+                                  max_hb_percent = max_hb_percent,
+                                  arterial_origin = arterial_origin,
+                                  disease_status = disease_status,
+                                  sex = sex)
   
   # Before clustering we need to define the most optimal resolution... again
   message("-------------------------------------------------------------------------------
@@ -171,12 +175,20 @@ doitall = function(counts_matrix, library_id, study_name,
   message("---------------------------------------------------
   The input library has been succesfully processed :)
   ---------------------------------------------------")
-  seurat_outputs = list(seurat_obj=seurat_obj, 
-                        doublet_barcodes = doublet_ids,
-                        before_qc_clusters=before_qc_clusters,
-                        after_qc_clusters=after_qc_clusters,
-                        before_qc_features = before_qc_features,
-                        after_qc_features = after_qc_features)
+  
+  if (!is.null(genes_of_interest)) {
+    seurat_outputs = list(seurat_obj = seurat_obj,
+                          doublet_barcodes = doublet_ids,
+                          before_qc_clusters = before_qc_clusters,
+                          after_qc_clusters = after_qc_clusters,
+                          before_qc_features = before_qc_features,
+                          after_qc_features = after_qc_features)
+  } else {
+    seurat_outputs = list(seurat_obj = seurat_obj,
+                          doublet_barcodes = doublet_ids,
+                          before_qc_clusters = before_qc_clusters,
+                          after_qc_clusters = after_qc_clusters)
+  }
   
   return(seurat_outputs)
   

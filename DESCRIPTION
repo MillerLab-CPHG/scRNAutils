@@ -1,8 +1,8 @@
 Package: scRNAutils
 Version: 0.0.1
 Date: 2023-04-19
-Title: scRNAutils
-Description: A package providing a pipeline for scRNA data analysis and some other useful helper functions. 
+Title: Utilities for analysis of scRNA data
+Description: A package providing a pipeline for scRNA data analysis and some other useful functions. 
 Authors@R: c(person("Jose", "Verdezoto", role=c("aut", "cre"), email = "jev4xy@virginia.edu"))
 Depends:
     R (>= 4.0),
@@ -10,6 +10,7 @@ Depends:
     tidyverse,
 Imports:
     scDblFinder,
+    SingleCellExperiment,
     celda,
     cluster,
     stats,

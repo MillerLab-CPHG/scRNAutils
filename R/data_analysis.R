@@ -70,6 +70,7 @@ decontX_remove = function(seurat_obj) {
 #' @param study_name A character indicating name of the study. 
 #' @param arterial_origin A character indicating arterial bed of the library.
 #' @param disease_status A character indicating the disease status of the library (e.g., non-lesion, lesion).
+#' @param sex A character string indicating sex of the subject. 
 #' @return A seurat object that has been SCT normalized, nearest neighbors graph and UMAP embeddings.
 Seurat_SCT_process = function(seurat_obj, 
                               seurat_filter=FALSE,
@@ -80,22 +81,27 @@ Seurat_SCT_process = function(seurat_obj,
                               max_mt_percent=10,
                               max_hb_percent=5,
                               library_id, 
-                              study_name, 
+                              study_id, 
                               arterial_origin=NULL, 
-                              sample_disease_status=NULL,
+                              disease_status=NULL,
                               sex=NULL){
   
   # Define sample and study IDs as core metadata values. 
+  if (is.null(library_id) | is.null(study_id)) { 
+    msg = paste("Library and Study IDs are missing!")
+    stop(msg)
+    }
+  
   seurat_obj$sample = library_id
-  seurat_obj$study = study_name
+  seurat_obj$study = study_id
   
   # Vascular bed and sample disease status can be kept as optional metadata values.
   if (!is.null(arterial_origin)) {
     seurat_obj$arterial_origin = arterial_origin
   }
   
-  if (!is.null(sample_disease_status)) {
-    seurat_obj$sample_disease_status = sample_disease_status
+  if (!is.null(disease_status)) {
+    seurat_obj$disease_status = disease_status
   }
   
   if (!is.null(sex)) { 
@@ -120,6 +126,10 @@ Seurat_SCT_process = function(seurat_obj,
   }
   
   # Calculate cell cycle scores
+  Seurat::cc.genes.updated.2019
+  s.genes = cc.genes.updated.2019$s.genes
+  g2m.genes = cc.genes.updated.2019$g2m.genes
+  
   seurat_obj = CellCycleScoring(seurat_obj, s.features = s.genes, 
                                 g2m.features = g2m.genes)
   

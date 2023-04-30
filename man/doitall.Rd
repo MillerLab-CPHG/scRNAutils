@@ -17,11 +17,14 @@ doitall(
   min_features = 200,
   max_features = 4000,
   max_mt_percent = 10,
-  max_hb_percent = 5
+  max_hb_percent = 5,
+  arterial_origin = NULL,
+  disease_status = NULL,
+  sex = NULL
 )
 }
 \arguments{
-\item{library_id}{A character indicating the id for the library}
+\item{library_id}{A character indicating the id for the library.}
 
 \item{min_res}{A numeric indicating lower boundary for sil analysis}
 
@@ -31,10 +34,30 @@ doitall(
 
 \item{genes_of_interest}{A character vector with genes of interest for checking expression before and after QC.}
 
+\item{min_UMI}{A numeric indicating min number of UMIs to keep.}
+
+\item{max_UMI}{A numeric indicating max number of UMIs to keep.}
+
+\item{min_features}{A numeric indicating the minimum number of genes cells should express to be included.}
+
+\item{max_features}{A numeric indicating the maximum number of genes cells should express to be included.}
+
+\item{max_mt_percent}{A numeric indicating the max percentage of reads mapped to the mito genome.}
+
+\item{max_hb_percent}{A numeric indicating the max percentage of reads mapped to hemoglobin genes.}
+
+\item{arterial_origin}{A character string indicating vascualr bed of the data.}
+
+\item{disease_status}{A character string indicating disease status of the library (e.g., lesion vs non-lesion)}
+
+\item{sex}{A character string indicating sex of the subject.}
+
 \item{count_matrix}{sparse count matrix required as initial input. As of now, make it accept 
 a filtered_feature_bc_matrix with a Seurat::Read10X or a txt file. Maybe this is better
 handled out of the function since we'd also be dealing with h5 files. Maybe we can do this later
 but not priority right now}
+
+\item{study_name}{A character string indicating the study that generated the data.}
 }
 \value{
 A list where the first object is the processed Seurat obj and remaining objects are UMAP plots before and after QC.
