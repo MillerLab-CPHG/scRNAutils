@@ -16,11 +16,9 @@
 #' 
 #' @return A List of named ggplot objects, one for each of the genes included in the character vector.
 #' @export
-seurat_gene_plot_list = function(seurat_object, 
-                                 target_assay="SCT", 
-                                 genes_of_interest,
-                                 split_by_var=NULL,
-                                 pt.size=0.1) {
+plot_gene_UMAP_list = function(seurat_object, target_assay="SCT", 
+                               genes_of_interest, split_by_var=NULL,
+                               pt.size=0.1) {
   
   # Check original default assay
   original_def_assay = Seurat::DefaultAssay(seurat_object)
@@ -39,16 +37,18 @@ seurat_gene_plot_list = function(seurat_object,
   if (!is.null(split_by_var)) { 
     gene_plots = lapply(genes_of_interest,
                         function(x){FeaturePlot(seurat_object, 
-                                                features = x, pt.size = pt.size,
-                                                split.by = split_by_var,
-                                                raster = FALSE, 
+                                                features=x, 
+                                                pt.size=pt.size,
+                                                split.by=split_by_var,
+                                                raster=FALSE, 
                                                 order = TRUE) & custom_theme() & miller_continous_scale()})
   } else {
     gene_plots = lapply(genes_of_interest,
                         function(x){FeaturePlot(seurat_object, 
-                                                features = x, pt.size = pt.size,
-                                                raster = FALSE, 
-                                                order = TRUE) & custom_theme() & miller_continous_scale()})
+                                                features=x, 
+                                                pt.size=pt.size,
+                                                raster=FALSE, 
+                                                order=TRUE) & custom_theme() & miller_continous_scale()})
   }
   
   # We need to return seurat object to the original default assay, 
@@ -61,6 +61,49 @@ seurat_gene_plot_list = function(seurat_object,
   return(gene_plots)
 }
 
+#' Make a function to visualize the correlation between two genes. 
+#' 
+#' This function will take a seurat object as input and produce a dot plot 
+#' correlating 2 genes in a specific group of cell types.
+#' 
+#' @param seurat_obj A seurat object with normalized expression values
+#' @param target_coldata A character indicating the name of the metadata column with 
+#' the cell types of interest.
+#' @param target_anno A character vector with the names of the cell types in which we wish 
+#' to correlate the genes. 
+#' @param assay A character indicating the assay from which to extract normalized counts. One of "SCT" or "RNA".  
+#' @param show_cor A boolean indicating whether we wish to calculate and show the correlation coefficient.
+#' @param cor_method A character indicating the correlation method to use. One of "pearson" or "spearman". 
+#' @return A ggplot object correlating expression of two genes in specific cell populations.  
+#'
+#' @export 
+#' 
+plot_gene_gene_cor = function(seurat_obj, target_coldata,
+                              target_anno, target_genes, 
+                              show_cor=FALSE, cor_method="pearson",
+                              assay="SCT") {
+  
+  # Tidy df before plotting
+  df = scRNAutils::tidy_seurat_counts(seurat_obj=seurat_obj,
+                                      target_coldata=target_coldata,
+                                      target_anno=target_anno,
+                                      assay=assay)
+  p = df %>% 
+    ggplot(aes_string(x=target_genes[1], 
+                      y=target_genes[2])) + 
+    geom_point() + 
+    custom_theme()  
+  
+  # Show correlation coefficient if the user wants to do so
+  if(show_cor) { 
+    # Fit linear model 
+    p = p + 
+      geom_smooth(method="lm") + 
+      ggpubr::stat_cor(method=cor_method)
+  }
+  
+  return(p)
+}
 
 #' Make a function to plot correlations
 #' 
@@ -161,15 +204,14 @@ plot_expression_on_pseudotime = function(cds_ordered,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12),
           axis.title = element_text(size = 14),
-          legend.text = element_text(size = 12)) +
-    npg_scale_bars
+          legend.text = element_text(size = 12)) 
   
   # If we want to plot genes on different panels
   if (facet_wrap_plot) { 
     p = p + 
       facet_wrap(~Feature_id, scales = "free_y") + 
       theme(legend.position = "none",
-            strip.background = element_rect(fill="azure3"))
+            strip.background = element_rect(fill="white"))
     return(p)
   }
   return(p)

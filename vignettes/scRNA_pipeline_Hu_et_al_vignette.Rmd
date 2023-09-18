@@ -1,0 +1,258 @@
+---
+title: "Getting started with the scRNAutils package"
+author: "Jose Verdezoto Mosquera"
+date:  "`r Sys.Date()`"
+output:
+  BiocStyle::html_document:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{1. Getting started with the scRNAutils package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r echo=FALSE}
+# These settings make the vignette prettier
+knitr::opts_chunk$set(results="hold", collapse = FALSE, message=FALSE, 
+                      warning = FALSE)
+```
+
+# Introduction to the Miller lab scRNAutils package 
+
+The main goal of this tutorial is to show usage of the scRNA-seq processing pipeline included in the `scRNAutils` package. This analysis pipeline was used to process individual raw libraries for the Human atherosclerosis scRNA-meta-analysis project (manuscript under revision) and will be used to streamline addition of new datasets into future iterations of the meta-analyzed dataset. 
+
+We've decided to encapsulate the pipeline within an R package instead of a more typical pipeline workflow as this give us the flexibility to include other handy functions for data analysis, manipulation and visualization. We hope this pipeline and other current (and upcoming) functions will help people without extensive programming experience to process their own data. The package is in a very early stage and will undergo future improvements and integration of new features. 
+
+
+## Installing scRNAutils and required dependencies 
+
+Here are some important dependencies that need to be installed for the package to work:
+
+```{r, eval=FALSE}
+
+# Make sure the Bioconductor package manager is installed. 
+# If not, install with the following line of code
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("Biocmanager")
+
+# This function will check whether dependencies are installed. 
+# If they're not, it'll install them either from CRAN or Bioconductor.
+check.deps = function(p, bioc=FALSE) {
+  if (! p %in% installed.packages()) {
+    if (bioc) { 
+      BiocManager::install(pkgs = p)
+    } else {
+      install.packages(p)
+    }
+  }
+}
+
+# Run the function to confirm installation of essential packages
+check.deps("Seurat")
+check.deps("glmGamPoi", bioc=TRUE)
+check.deps("scDblFinder", bioc=TRUE)
+check.deps("sctransform")
+check.deps("SingleCellExperiment", bioc=TRUE)
+check.deps("celda", bioc=TRUE)
+check.deps("tidyverse")
+check.deps("cluster")
+check.deps("stats")
+check.deps("data.table")
+check.deps("ggsci")
+check.deps("ggpubr")
+
+```
+
+Eventually we'll use `devtools::install_github()` to get the package installed, but for now try the following workflow:
+
+  1. Clone Github repository:
+
+```{bash, eval=FALSE}
+# Clone repo
+git clone git@github.com:MillerLab-CPHG/scRNAutils
+
+```
+
+  2. Build a `.tar.gz` file of the package with `devtools`:
+
+```{r, eval=FALSE}
+
+# The following will create a file named scRNAutils_0.0.1.tar.gz
+devtools::build("/path/to/scRNAutils")
+
+```
+
+  3. Now we can install the package from the command line:
+
+```{bash, eval=FALSE}
+
+# Install the package 
+R CMD INSTALL path/to/scRNAutils_0.0.1.tar.gz
+
+```
+
+Load all of the required packages into the R session:
+
+```{r, message=FALSE, results="hide", warning=FALSE}
+
+# Load all packages at once
+deps = c("Seurat", "glmGamPoi", "scDblFinder", "SingleCellExperiment", "celda", "tidyverse", "cluster", "broom", "stats", "data.table", "ggsci", "ggpubr")
+lapply(deps, library, character.only=TRUE)
+
+```
+
+## Overview of the pipeline and loading of example data
+
+The pipeline, as currently written, is a single function that takes care of the QC, normalization, dimensionality reduction and clustering optimization. Broadly this is the implemented workflow:
+
+  1. **QC** Create a Seurat object and do one round of `louvain` clustering to get clusters needed for artificial doublet generation with `scDblFinder`. 
+  2. Remove doublets by performing `n` number of doublet identification iterations (default is `n=3 iterations` but can be any number defined by the user). I wouldn't recommend going more than 10 iterations, especially for larger libraries. 
+  3. Once doublets have been removed, we use our own `decontX` wrapper to remove ambient RNA. This wrapper takes a Seurat object as input and returns a Seurat object with cleaned raw counts within the `RNA assay`.
+  4. Now the user can provide thresholds for number of UMIs, unique genes expressed and percentage of reads mapped to mithochondrial/hemoglobin genes (cells with large portion of reads mapping to Hb genes might represent contaminating erythrocytes). This will be the last stage of QC. 
+  5. **Normalization** After QC, data will be normalized using the `SCTransform` algorithm developed by **Hafemeister et al., 2019**.
+  6. **Dimensionality reduction** is done with PCA and UMAP.
+  7. **Clustering optimization** This step leverages user-provided minimum and maximum values of clustering resolutions to calculate average silhouette scores for each of them.
+  8. The pipeline then selects the clustering resolution with the *maximum average silhouette score* and perform Louvain (leiden will be implemented soon) clustering to get the final set of clusters.  
+
+It's important to note that the pipeline currently takes a count matrix as input. The count matrix needs to be in `sparse` or `dgCMatrix` format. This is required by the user but we might eventually handle conversion to sparse matrix format inside of the function. We'll showcase the pipeline using a library from *Hu et al. ATBV, 2021*
+
+``` {r}
+
+# Load the package
+library(scRNAutils)
+
+# Load example library from Hu et al., 2021
+coronary2_p2_library = Seurat::Read10X("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/scRNA_raw_matrices/Hu_et_al_human_coronaries_aortas_pulmonary/cardiac_arteries_processed_data/patient2_CA2/")
+
+# Check we have the right input
+paste("The provided input is a", class(coronary2_p2_library))
+
+```
+
+# Run the pipeline and explore its outputs
+
+## Process data with `doitall()`
+
+The entire pipeline can be run using the `doitall()` function. We just need to specify some arguments. Description of the arguments can be found upon loading the package. But here's a brief overview:
+
+   - `counts_matrix`: A matrix in `sparse` or `dgCMatrix` format where rows are genes and columns are cells **(required)**. 
+   - `study_id` and `library_id`: These are character strings that will add corresponding metadata. These are **required** metadata values. 
+   - `min_res` and `max_res`: These are numeric values indicating the lower and upper boundaries of clustering resolutions for calculating silhouette coefficients **(default=0.3 and 1.9)**. These values should be adjusted depending on the number of cells per library. 
+   - `dbl_remove_iter`: A numeric value defining the number of iterations performed to get consensus doublet barcodes **(default=3)**.
+   - `genes_of_interest`: A character vector with the names of genes to check their expression before and after QC **(optional)**. 
+
+```{r, message=FALSE, results="hide", warning=FALSE}
+
+# Define genes of interest
+genes_vec = c("MYH11", "CNN1", "TNFRSF11B")
+
+# Run pipeline
+hu_pipeline_outs = scRNAutils::doitall(counts_matrix=coronary2_p2_library,
+                                       study_id="Hu_et_al", 
+                                       library_id="Hu_coronary2_p2", 
+                                       min_res=0.4, 
+                                       max_res=1,
+                                       dbl_remove_iter=3,
+                                       genes_of_interest=genes_vec)
+
+
+```
+
+The pipeline output consists of a list with 6 items:
+
+  - The processed `Seurat object`.
+  - Consensus doublet cell barcodes identified by n iterations defined by the user. 
+  - UMAP of clusters before QC.
+  - UMAP of clusters after QC.
+  - Gene expression UMAPs before QC, including genes defined by the user in the `genes_of_interest` argument.
+  - Gene expression UMAPs after QC, including genes defined by the user in the `genes_of_interest` argument.
+
+```{r}
+
+# Check items produced by the pipeline
+names(hu_pipeline_outs)
+
+```
+
+## Explore clustering results
+  
+We can explore clustering results as follows:
+
+```{r, fig.cap="Clusters before and after QC", fig.align="center" }
+
+# Plot cluster UMAPs comparing data before and after QC
+before_qc_clusters = hu_pipeline_outs$before_qc_clusters + ggtitle ("Clusters before QC") + custom_theme() 
+
+after_qc_clusters = hu_pipeline_outs$after_qc_clusters + ggtitle("Clusters after QC") + custom_theme() 
+
+# Plot UMAPS together
+cowplot::plot_grid(before_qc_clusters, after_qc_clusters)
+
+```
+
+## Explore gene expression results
+
+We can also take a look at how gene expression looks before removing ambient RNA:
+
+```{r, fig.cap="Gene expression for user defined genes before QC", fig.align="center"}
+
+# Extract gene expression UMAPs from the pipeline output
+before_qc_feature_list = hu_pipeline_outs$before_qc_features 
+after_qc_feature_list = hu_pipeline_outs$after_qc_features 
+
+# Plot gene expression before QC
+cowplot::plot_grid(plotlist=before_qc_feature_list, 
+                   ncol=3)
+
+```
+
+Now let's take a look at how gene expression looks after removing ambient RNA: 
+
+```{r, fig.cap="Gene expression for user defined genes before QC", fig.align="center"}
+
+cowplot::plot_grid(plotlist=after_qc_feature_list, 
+                   ncol=3)
+
+```
+
+## Explore functions for downstream analyses
+
+Here we'll showcase one of the functions included in the package. Let's say we just cleaned our data and we have a Seurat object. Now we're itching to see how our gene of interest (e.g., FN1) correlates to other genes in our SMC clusters. This can be easily achieved with only a few lines of code. We simply need to provide the input seurat object as well as the name of the metadata column that has the cluster/cell type IDs we're insterested in. 
+
+```{r, fig.cap="Comparison of FN1 and VCAN expression in SMCs", fig.align="center"}
+
+# Define SMC clusters and target gene inputs
+smc_cluster_ids = c(0, 3)
+target_genes = c("FN1", "VCAN")
+
+# Plot correlations between two genes in SMCs
+plot_gene_gene_cor(seurat_obj=hu_pipeline_outs$seurat_obj,
+                   target_coldata=c("seurat_clusters"),
+                   target_anno=smc_cluster_ids,
+                   target_genes=target_genes,
+                   show_cor=FALSE)
+
+```
+
+If we wish to fit a linear model and to calculate a correlation coefficient for the two input genes in SMCs, we just need to set `show_cor=TRUE` and define the type of correlation coefficient (either `pearson` or `spearman`).
+
+```{r, fig.cap="Pearson correlation between FN1 and VCAN expression in SMCs", fig.align="center"}
+
+# Fit linear model and calculate pearson cor coeff
+plot_gene_gene_cor(seurat_obj=hu_pipeline_outs$seurat_obj,
+                   target_coldata=c("seurat_clusters"),
+                   target_anno=smc_cluster_ids,
+                   target_genes=target_genes,
+                   show_cor=TRUE,
+                   cor_method="pearson")
+
+```
+
+
+# Conclusion
+
+That's it for now. As previously mentioned, the pipeline is in a very early stage but as of now, it does what I think are the essential processing steps for any scRNA library. Some other features we're currently trying to add include:
+  - Output more QC diagnostic plots (e.g., distribution of UMIs).
+  - Addition of Leiden clustering as an alternative to Louvain. 
+  - Addition of alternative algorithms to optimize clustering resolution. 
+

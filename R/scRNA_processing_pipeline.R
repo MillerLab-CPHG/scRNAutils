@@ -34,6 +34,7 @@ doitall = function(counts_matrix,
                    min_res=0.3, 
                    max_res=1.9, 
                    dbl_remove_iter=3,
+                   clustering_alg="louvain",
                    genes_of_interest=NULL,
                    min_UMI=200 ,
                    max_UMI=20000,
@@ -95,14 +96,15 @@ doitall = function(counts_matrix,
   message("The maximum avg sil score for prefiltered dataset is ", max_sil_res)
   
   
-  # Now we use the max avg sil value to cluster data 
+  # Now we use the max avg sil value to cluster data. Louvain clustering is probably fine
+  # to identify doublets
   seurat_obj =  FindClusters(seurat_obj, resolution = max_sil_res)
   before_qc_clusters = DimPlot(seurat_obj, reduction = "umap", label = TRUE)
   
   # Produce a list of whatever genes the user needs
   if (!is.null(genes_of_interest)) {
-    before_qc_features = seurat_gene_plot_list(seurat_object = seurat_obj,
-                                               genes_of_interest = genes_of_interest)
+    before_qc_features = plot_gene_UMAP_list(seurat_object=seurat_obj,
+                                             genes_of_interest=genes_of_interest)
   }
 
   ######################################################################
@@ -111,8 +113,8 @@ doitall = function(counts_matrix,
   message("------------------
   Finding doublets...
   -------------------")
-  doublet_ids = scDblFinder_clusters(seurat_obj = seurat_obj, 
-                                     nrep = dbl_remove_iter )
+  doublet_ids = scDblFinder_clusters(seurat_obj=seurat_obj, 
+                                     nrep=dbl_remove_iter )
   message("There are ", length(doublet_ids), "from ", 
           dbl_remove_iter, " iterations of scDblFinder")
   
@@ -121,10 +123,10 @@ doitall = function(counts_matrix,
   message("There are ", length(singlets), " cells remaining after removing doublets")
   
   # Create a new seurat obj keeping only singlets
-  seurat_obj = CreateSeuratObject(counts = counts_matrix[, singlets],
-                                  project = library_id,
-                                  min.cells = 10,
-                                  min.features = 200)
+  seurat_obj = CreateSeuratObject(counts=counts_matrix[, singlets],
+                                  project=library_id,
+                                  min.cells=10,
+                                  min.features=200)
   
   # Clean newly filtered counts matrix from ambient RNA using our own decontX wrapper
   # within the utility script. 
@@ -132,44 +134,68 @@ doitall = function(counts_matrix,
   Removing ambient RNA...because who doesn't like cleaner data? -
   ------------------------------------------------------------------")
   
-  seurat_obj = decontX_remove(seurat_obj = seurat_obj)
+  seurat_obj = decontX_remove(seurat_obj=seurat_obj)
   
   ##########################################################################
   # STEP4: Normalization and dimensionality reduction of cleaned counts matrix
   # In this case, the matrix will be further filtered according to nUMIs,
   # nFeatures and percentage of reads mapped to mitochondrial genome. 
-  seurat_obj = Seurat_SCT_process(seurat_obj = seurat_obj,
-                                  seurat_filter = TRUE,
-                                  library_id = library_id,
-                                  study_id = study_id,
-                                  min_UMI = min_UMI,
-                                  max_UMI = max_UMI,
-                                  min_features = min_features,
-                                  max_features = max_features,
-                                  max_mt_percent = max_mt_percent,
-                                  max_hb_percent = max_hb_percent,
-                                  arterial_origin = arterial_origin,
-                                  disease_status = disease_status,
-                                  sex = sex)
+  seurat_obj = Seurat_SCT_process(seurat_obj=seurat_obj,
+                                  seurat_filter=TRUE,
+                                  library_id=library_id,
+                                  study_id=study_id,
+                                  min_UMI=min_UMI,
+                                  max_UMI=max_UMI,
+                                  min_features=min_features,
+                                  max_features=max_features,
+                                  max_mt_percent=max_mt_percent,
+                                  max_hb_percent=max_hb_percent,
+                                  arterial_origin=arterial_origin,
+                                  disease_status=disease_status,
+                                  sex=sex)
   
   # Before clustering we need to define the most optimal resolution... again
   message("-------------------------------------------------------------------------------
   Calculating maximum avg silhouette score for the provided clustering resolutions
   --------------------------------------------------------------------------------")
-  filtered_sil_scores = calc_sil_scores(seurat_obj, clustering_res)
+  
+  if (clustering_alg == "leiden") {
+    filtered_sil_scores = calc_sil_scores(seurat_obj, 
+                                          clustering_res,
+                                          clustering_alg="leiden")
+  } else if (clustering_alg == "louvain") {
+    filtered_sil_scores = calc_sil_scores(seurat_obj, 
+                                          clustering_res,
+                                          clustering_alg="louvain")
+  }
+  
   filtered_max_sil_score = max_avg_sil_score(filtered_sil_scores)
   
   message("The maximum avg sil score for the filtered data is ", filtered_max_sil_score)
   
   # Now we can cluster the data 
   message("Clustering data...")
-  seurat_obj = FindClusters(seurat_obj, resolution = filtered_max_sil_score)
+  
+  # Add arg to produce clusters using either Louvain or Leiden algorithm
+  if (clustering_alg == "leiden") {
+    seurat_obj = FindClusters(seurat_obj, 
+                              resolution=filtered_max_sil_score,
+                              algorithm=4)
+  } else if (clustering_alg == "louvain") {
+    seurat_obj = FindClusters(seurat_obj, 
+                              resolution = filtered_max_sil_score,
+                              algorithm=1)
+  } else {
+    msg = "Clustering algorithm should be either louvain or leiden..."
+    stop(msg)
+  }
+  
   after_qc_clusters = DimPlot(seurat_obj, reduction = "umap", label = TRUE)
   
   # Produce list of gene expression plots after QC. 
   if (!is.null(genes_of_interest)) {
-    after_qc_features = seurat_gene_plot_list(seurat_object = seurat_obj,
-                                              genes_of_interest = genes_of_interest)
+    after_qc_features = plot_gene_UMAP_list(seurat_object=seurat_obj,
+                                            genes_of_interest=genes_of_interest)
   }
   
   message("---------------------------------------------------

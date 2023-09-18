@@ -22,15 +22,9 @@ knitr::opts_chunk$set(results="hold", collapse = FALSE, message=FALSE,
 The main goal of this tutorial is to show usage of the scRNA processing pipeline included in the `scRNAutils` package. The package is in a very early stage and will definitely undergo lots of improvements. 
 
 
-## Installing scRNA utils and required dependencies 
+## Installing scRNAutils and required dependencies 
 
-Install `scRNAutils` from Github as follows:
-
-```{r, install, eval=FALSE}
-devtools::install_github("MillerLab-CPHG/scRNAutils")
-```
-
-Here are other important dependencies that need to be installed to run functions within the package:
+Here are some important dependencies that need to be installed for the package to work:
 
 ```{r, eval=FALSE}
 
@@ -64,11 +58,54 @@ check.deps("ggsci")
 
 ```
 
-Now we load all of the required dependencies:
+Now we can install the `scRNAutils` package:
+
+In the long term, this is probably how we'll set the installation
+
+```{r, eval=FALSE}
+
+# Use devtools for installation directly from Github
+devtools::install_github("MillerLab-CPHG/scRNAutils")
+
+```
+
+Alternatively, since the repository is private for now, try this workflow instead:
+
+  1. Clone repo:
+
+```{bash, eval=FALSE}
+
+# Clone repo
+git clone git@github.com:MillerLab-CPHG/scRNAutils
+
+```
+
+  
+  2. Build the package with `devtools`:
+
+```{r, eval=FALSE}
+
+# The following will create a file named scRNAutils_0.0.1.tar.gz
+devtools::build("/Path/to/scRNAutils")
+
+```
+
+  
+  3. I'm having some issues with `devtools::install()` but for now try this from the command line:
+
+```{bash, eval=FALSE}
+
+# Install the package 
+R CMD INSTALL path/to/scRNAutils_0.0.1.tar.gz
+
+```
+
+
+Load all of the required packages into the R session:
 
 ```{r, message=FALSE, results="hide", warning=FALSE}
 
-# Load all required dependencies at once
+# Load all packages at once
 deps = c("Seurat", "scDblFinder", "SingleCellExperiment", "celda", "tidyverse", "cluster", "broom", "stats", "data.table", "ggsci")
 lapply(deps, library, character.only=TRUE)
 
@@ -78,10 +115,10 @@ lapply(deps, library, character.only=TRUE)
 
 The pipeline, as currently written, is a single function that takes care of the QC, normalization, dimensionality reduction and clustering. Broadly this is the implemented workflow:
 
-  1. Create Seurat object and do one round of clustering to get cell partitions needed for artificial doublet doublet generation. 
+  1. Create Seurat object and do one round of clustering to get cell partitions needed for artificial doublet generation. 
   2. Remove doublets by performing n number of doublet identification iterations (n defaults to 3 but can be any number defined by the user).
-  3. Once doublets have been removed, we use a `decontX` wrapper included in the package to remove ambient RNA. This wrapper takes a Seurat object as input and           returns a Seurat object with cleaned raw counts within the RNA assay.
-  4. Now the user can provide thresholds for number of UMIs, unique genes expressed and percentage of reads mapped to mithochondrial and hemoglobin genes. This         will be the last stage of QC. 
+  3. Once doublets have been removed, we use a `decontX` wrapper included in the package to remove ambient RNA. This wrapper takes a Seurat object as input and returns a Seurat object with cleaned raw counts within the RNA assay.
+  4. Now the user can provide thresholds for number of UMIs, unique genes expressed and percentage of reads mapped to mithochondrial and hemoglobin genes. This will be the last stage of QC. 
   5. After QC, data will be normalized using `SCTransform`.
   6. Dimensionality reduction is done with PCA and UMAP.
   7. Now clusters can be identified. This step uses the user-provided range of clustering resolutions and calculate average silhouette scores for each of them.
@@ -92,7 +129,7 @@ It's important to note that the pipeline currently takes a count matrix as input
 ```{r}
 
 # Load the package
-#library(scRNAutils)
+library(scRNAutils)
 
 # Load example data, kindly provided by Paul Cheng at Stanford
 cheng_rca_seurat = read_rds("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/scRNA_raw_matrices/Cheng_human_RCA_scRNA_data/RCA.rds")
@@ -119,25 +156,18 @@ paste("The provided input is a", class(cheng_test_library))
 
 ## Process data with `doitall()`
 
-The entire pipeline can be run using the `doitall()` function. We just need to add some arguments. Description of the arguments can be found upon loading the package. But here's a brief overview:
+The entire pipeline can be run using the `doitall()` function. We just need to specify some arguments. Description of the arguments can be found upon loading the package. But here's a brief overview:
 
    - `counts_matrix`: A sparse count matrix where rows are genes and columns are cells **(required)**. 
-   - `study_id` and `library_id`: These are required character strings that will add corresponding metadata. These are required metadata values. 
+   - `study_id` and `library_id`: These are character strings that will add corresponding metadata. These are **required** metadata values. 
    - `min_res` and `max_res`: These are numeric values indicating the lower and upper boundaries of clustering resolutions for calculatin silhouette coefficients **(default=0.3 and 1.9)**. 
    - `dbl_remove_iter`: A numeric value defining the number of iterations performed to get consensus doublet barcodes **(default=3)**.
    - `genes_of_interest`: A character vector with the names of genes to check their expression before and after QC **(optional)**. 
 
 ```{r, message=FALSE, results="hide", warning=FALSE}
 
-# For now source functions within the package directly 
-source("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/project_scripts/scRNAutils/R/scRNA_processing_pipeline.R")
-source("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/project_scripts/scRNAutils/R/data_analysis.R")
-source("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/project_scripts/scRNAutils/R/data_manipulation.R")
-source("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/project_scripts/scRNAutils/R/utility.R")
-source("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/project_scripts/scRNAutils/R/visualization.R")
-
 # Run pipeline
-cheng_pipeline_outs = doitall(counts_matrix = cheng_test_library,
+cheng_pipeline_outs = scRNAutils::doitall(counts_matrix = cheng_test_library,
                               study_id = "Cheng_et_al", 
                               library_id = "cheng_library_1", 
                               min_res = 0.3, 

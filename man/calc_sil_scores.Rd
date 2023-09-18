@@ -4,7 +4,7 @@
 \alias{calc_sil_scores}
 \title{Calculation of sihouette scores}
 \usage{
-calc_sil_scores(seurat_obj, clustering_res)
+calc_sil_scores(seurat_obj, clustering_res, clustering_alg = "louvain")
 }
 \arguments{
 \item{seurat_obj}{A Seurat obj with reduced dims embedding like pca. Default now is set to PCA.}

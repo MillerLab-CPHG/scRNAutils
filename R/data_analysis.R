@@ -99,24 +99,22 @@ Seurat_SCT_process = function(seurat_obj,
   if (!is.null(arterial_origin)) {
     seurat_obj$arterial_origin = arterial_origin
   }
-  
   if (!is.null(disease_status)) {
     seurat_obj$disease_status = disease_status
   }
-  
   if (!is.null(sex)) { 
     seurat_obj$sex = sex
   }
   
   # Check for mt, hb percentage and other quality metrics 
   seurat_obj[["percent.mt"]] = PercentageFeatureSet(seurat_obj, 
-                                                    pattern = "^MT-")
+                                                    pattern="^MT-")
   
   # Define hemoglobin genes
   hb_index = grep(rownames(seurat_obj), pattern = "^HB[AB]")
   hb_genes = rownames(seurat_obj)[hb_index]
   seurat_obj[["percent.hb"]] = PercentageFeatureSet(seurat_obj, 
-                                                    features = hb_genes)
+                                                    features=hb_genes)
   
   # Filter low quality cells (start with parameters used in the paper)
   # NOTE: Skip this step during the first processing round to be used for doublet detection
@@ -130,17 +128,18 @@ Seurat_SCT_process = function(seurat_obj,
   s.genes = cc.genes.updated.2019$s.genes
   g2m.genes = cc.genes.updated.2019$g2m.genes
   
-  seurat_obj = CellCycleScoring(seurat_obj, s.features = s.genes, 
-                                g2m.features = g2m.genes)
+  seurat_obj = CellCycleScoring(seurat_obj, s.features=s.genes, 
+                                g2m.features=g2m.genes)
   
   # Normalize data, find variable genes, scale data and regress out cell cycle variance
   # SCT enables extraction of meaningful insights from more PCs so we'll set dims=1:30
   # SCTransform Arg vst.flavor="v2" internally uses glmGamPoi
-  seurat_obj = SCTransform(seurat_obj, vst.flavor = "v2", 
-                           vars.to.regress = c("S.Score","G2M.Score")) %>%
+  seurat_obj = SCTransform(seurat_obj, 
+                           vst.flavor="v2", 
+                           vars.to.regress=c("S.Score","G2M.Score")) %>%
     RunPCA() %>% 
-    FindNeighbors(reduction = "pca", dims = 1:30, k.param = 20) %>%
-    RunUMAP(dims = 1:30, n.neighbors = 30)
+    FindNeighbors(reduction="pca", dims=1:30, k.param=20) %>%
+    RunUMAP(dims=1:30, n.neighbors=30)
   
   return(seurat_obj)
 }
@@ -159,7 +158,8 @@ Seurat_SCT_process = function(seurat_obj,
 #' sil_scores = calc_sil_scores(seurat_obj, seq(0.3, 0.9, by=0.1))
 #' }
 calc_sil_scores = function(seurat_obj, 
-                           clustering_res) {
+                           clustering_res,
+                           clustering_alg="louvain") {
   clustering_res = clustering_res
   sil_scores_list = list()
   
@@ -169,11 +169,27 @@ calc_sil_scores = function(seurat_obj,
   
   # Cluster data with each of the resolutions provided
   for (i in seq_along(clustering_res)) { 
-    seurat_obj = FindClusters(seurat_obj, 
-                              resolution = clustering_res[i])
-    clusters = seurat_obj$seurat_clusters
-    message("Calculating silhouette scores for defined resolutions...")
     
+    message("Clustering data...")
+    
+    # Cluster cells using either the louvain or leiden algorithm
+    if (clustering_alg == "leiden") {
+      seurat_obj = FindClusters(seurat_obj, 
+                                resolution=clustering_res[i],
+                                algorithm=4)
+    } else if (clustering_alg == "louvain") {
+      seurat_obj = FindClusters(seurat_obj,
+                                resolution=clustering_res[i],
+                                algorithm=1)
+    } else {
+      msg = "Clustering algorithm should be one of louvain or leiden..."
+      stop(msg)
+    }
+    
+    # Extract louvain or leiden clusters from seurat object
+    clusters = seurat_obj$seurat_clusters
+    
+    message("Calculating silhouette scores for defined resolutions...")
     sil = cluster::silhouette(x = as.numeric(x = as.factor(x = clusters)), 
                      dist = dist_matrix)
     # Add silhouette scores back into seurat obj metadata

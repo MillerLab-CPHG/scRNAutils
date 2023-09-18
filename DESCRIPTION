@@ -1,27 +1,31 @@
 Package: scRNAutils
+Title: Comprehensive pipeline for scRNA-seq data analysis.
 Version: 0.0.1
 Date: 2023-04-19
-Title: Utilities for analysis of scRNA data
 Description: A package providing a pipeline for scRNA data analysis and some other useful functions. 
 Authors@R: c(person("Jose", "Verdezoto", role=c("aut", "cre"), email = "jev4xy@virginia.edu"))
 Depends:
     R (>= 4.0),
     Seurat,
+    glmGamPoi,
     tidyverse,
 Imports:
-    scDblFinder,
-    SingleCellExperiment,
+    broom,
     celda,
     cluster,
-    stats,
     data.table,
-    ggplot2,
-    reshape2,
-    methods,
-    utils,
     dplyr,
-    broom,
-    GenomeInfoDb
+    GenomeInfoDb,
+    ggplot2,
+    ggpubr,
+    ggsci,
+    methods,
+    reshape2,
+    RColorBrewer,
+    scDblFinder,
+    SingleCellExperiment,
+    stats,
+    utils,
 Suggests:
     AnnotationFilter,
     rtracklayer,

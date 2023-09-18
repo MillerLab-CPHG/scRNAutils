@@ -11,6 +11,7 @@ doitall(
   min_res = 0.3,
   max_res = 1.9,
   dbl_remove_iter = 3,
+  clustering_alg = "louvain",
   genes_of_interest = NULL,
   min_UMI = 200,
   max_UMI = 20000,
