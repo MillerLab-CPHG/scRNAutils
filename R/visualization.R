@@ -7,57 +7,63 @@
 #' A function that takes a seurat object as input and 
 #' produces a named list of gene expression plots. 
 #' 
-#' @param seurat_object A seurat object with normalized expression values.
-#' @param target_assay A character indicating the assay to be used for making gene expression plots. 
+#' @param seuratObj A seurat object with normalized expression values.
+#' @param targetAssay A character indicating the assay to be used for making gene expression plots. 
 #' Most of the time this argument will be either RNA or SCT. Default is set to SCT. 
-#' @param genes_of_interest A character vector with the names of the genes to be included in the list.
-#' @param split_by_var A character indicating a metadat variable by which to facet the plot (e.g., sex, disease status).
-#' @param pt.size A numeric indicating the size of the points for each plot. Default value is 0.1 but can be changed. 
+#' @param queryGenes A character vector with the names of the genes to be included in the list.
+#' @param splitByVar A character indicating a metadat variable by which to facet the plot (e.g., sex, disease status).
+#' @param ptSize A numeric indicating the size of the points for each plot. Default value is 0.1 but can be changed. 
 #' 
 #' @return A List of named ggplot objects, one for each of the genes included in the character vector.
 #' @export
-plot_gene_UMAP_list = function(seurat_object, target_assay="SCT", 
-                               genes_of_interest, split_by_var=NULL,
-                               pt.size=0.1) {
+#' 
+plotGeneUMAP = function(
+  seuratObj,
+  queryGenes,
+  targetAssay = "SCT", 
+  splitByVar = NULL,
+  ptSize = 0.1
+  ){
   
   # Check original default assay
-  original_def_assay = Seurat::DefaultAssay(seurat_object)
+  originalDefAssay = Seurat::DefaultAssay(seuratObj)
   
   # Set seurat assay to whatever user defines as target assay.
   # If target different than original default assay, do a temporary change. 
-  if (original_def_assay=="RNA" & target_assay=="SCT") {
-    DefaultAssay(seurat_object) = "SCT"
-  } else if (original_def_assay=="SCT" & target_assay=="RNA") {
-    DefaultAssay(seurat_object) = "RNA"
+  if (originalDefAssay == "RNA" & targetAssay == "SCT") {
+    DefaultAssay(seuratObj) = "SCT"
+  } else if (originalDefAssay == "SCT" & targetAssay == "RNA") {
+    DefaultAssay(seuratObj) = "RNA"
   } else {
-    DefaultAssay(seurat_object) = original_def_assay
+    DefaultAssay(seuratObj) = originalDefAssay
   }
   
   plot_list = list()
-  if (!is.null(split_by_var)) { 
-    gene_plots = lapply(genes_of_interest,
-                        function(x){FeaturePlot(seurat_object, 
-                                                features=x, 
-                                                pt.size=pt.size,
-                                                split.by=split_by_var,
-                                                raster=FALSE, 
-                                                order = TRUE) & custom_theme() & miller_continous_scale()})
+  if (!is.null(splitByVar)) { 
+    gene_plots = lapply(
+      queryGenes,
+      function(x){FeaturePlot(seuratObj, 
+                              features = x, 
+                              pt.size = ptSize,
+                              split.by = splitByVar,
+                              raster = FALSE, 
+                              order = TRUE) & custom_theme() & miller_continous_scale()})
   } else {
-    gene_plots = lapply(genes_of_interest,
-                        function(x){FeaturePlot(seurat_object, 
-                                                features=x, 
-                                                pt.size=pt.size,
-                                                raster=FALSE, 
-                                                order=TRUE) & custom_theme() & miller_continous_scale()})
+    gene_plots = lapply(
+      queryGenes,
+      function(x){FeaturePlot(seuratObj, 
+                              features = x, 
+                              pt.size = ptSize,
+                              raster=FALSE, 
+                              order=TRUE) & custom_theme() & miller_continous_scale()})
   }
   
   # We need to return seurat object to the original default assay, 
   # if the target is different of course. 
-  if (original_def_assay != target_assay) { 
-    DefaultAssay(seurat_object) = original_def_assay
+  if (originalDefAssay != targetAssay) { 
+    DefaultAssay(seuratObj) = originalDefAssay
   }
-  
-  names(gene_plots) = genes_of_interest
+  names(gene_plots) = queryGenes
   return(gene_plots)
 }
 
@@ -78,10 +84,11 @@ plot_gene_UMAP_list = function(seurat_object, target_assay="SCT",
 #'
 #' @export 
 #' 
-plot_gene_gene_cor = function(seurat_obj, target_coldata,
-                              target_anno, target_genes, 
-                              show_cor=FALSE, cor_method="pearson",
-                              assay="SCT") {
+plot2GeneCor = function(seurat_obj, 
+                        target_coldata,
+                        target_anno, target_genes, 
+                        show_cor=FALSE, cor_method="pearson",
+                        assay="SCT") {
   
   # Tidy df before plotting
   df = scRNAutils::tidy_seurat_counts(seurat_obj=seurat_obj,
@@ -119,11 +126,17 @@ plot_gene_gene_cor = function(seurat_obj, target_coldata,
 #' 
 #' @export
 #' 
-plot_cors = function(cors_df, target_gene, 
-                     target_cells, 
-                     genes_to_label, point_size=0.9) {
+plotGene2TranscriptomeCor = function(
+  cors_df, 
+  target_gene, 
+  target_cells, 
+  genes_to_label, 
+  point_size=0.9
+  ){
+  
   ggplot(cors_df, aes(x=gene_index, y=cor_estimate, 
-                      color=cor_estimate, label=ifelse(gene %in% genes_to_label, gene, ""))) + 
+                      color=cor_estimate, 
+                      label=ifelse(gene %in% genes_to_label, gene, ""))) + 
     geom_point(size=point_size) +
     geom_text_repel(min.segment.length = 0, 
                     max.overlaps = Inf, color="black", 
@@ -135,7 +148,7 @@ plot_cors = function(cors_df, target_gene,
     labs(color="r") +
     theme_bw() +
     scale_colour_viridis_c(option="magma") +
-    scale_x_continuous(limits=c(0,20000)) +
+    scale_x_continuous(limits=c(0, 20000)) +
     theme(aspect.ratio = 1, 
           panel.grid.minor = element_blank(),
           panel.grid.major = element_blank(),
@@ -157,11 +170,13 @@ plot_cors = function(cors_df, target_gene,
 #' @return A ggplot object with one or multiple panels showing gene expression across pseudotime values.
 #' @export
 #' 
-plot_expression_on_pseudotime = function(cds_ordered, 
-                                         cell_annotations, 
-                                         genes,
-                                         facet_wrap_plot=FALSE,
-                                         pseudotime_boundary = 30) { 
+plot_expression_on_pseudotime = function(
+  cds_ordered, 
+  cell_annotations, 
+  genes,
+  facet_wrap_plot = FALSE,
+  pseudotime_boundary = 30
+  ){ 
   
   # Create subset of the main cds object to contain only cell type annotations
   # and genes for plotting along pseudotime. 
@@ -192,19 +207,14 @@ plot_expression_on_pseudotime = function(cds_ordered,
   
   # Fit a cubic spline to normalized expression values across pseudotime
   p =  ggplot(cds_exprs, aes(pseudotime, Norm_expression, fill=Feature_id)) + 
-    geom_smooth(method = "lm", formula = y ~ splines::ns(x, 3), 
+    geom_smooth(method = "lm", 
+                formula = y ~ splines::ns(x, 3), 
                 color="black") 
   p = p + 
     xlim(0, pseudotime_boundary) + 
     scale_y_log10() + 
     ylab("SCTransform norm expression") + 
-    theme_bw() + 
-    theme(aspect.ratio = 1,
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12),
-          axis.title = element_text(size = 14),
-          legend.text = element_text(size = 12)) 
+    custom_theme()
   
   # If we want to plot genes on different panels
   if (facet_wrap_plot) { 
@@ -217,6 +227,98 @@ plot_expression_on_pseudotime = function(cds_ordered,
   return(p)
 }
 
+#' Internal helper function to plot scRNA library complexity
+#'
+#' this helper function will correlate number of UMIs to
+#' the number of genes detected for each cell, and color them
+#' by the percent of reads aligned to the mitochondrial genome
+#'
+#' @param seuratObj A Seurat object with QC metrics stored in the metadata 
+#' @param df A dataframe with metadata variables nCount_RNA, nFeature_RNA
+#' and percent.mt variables.
+#' @param cor A boolean indicating whether we want to apply a lm to 
+#' UMIs and genes. 
+#' @return A ggplot object showing the correlation between 
+#' number of UMIs and detected genes. 
+#'
+#' @export
+#'
+plotRNAcomplexity = function(
+  seuratObj,
+  df,
+  cor = FALSE
+  ){
+  df = seuratObj@meta.data
+  p = ggplot(df, 
+             aes_string(x = "nCount_RNA", y = "nFeature_RNA", 
+                 color = "percent.mt"))
+  
+  p = p +
+    geom_point(size = 0.4) +
+    scale_x_log10() + 
+    scale_y_log10() + 
+    xlab("nUMIs") +
+    ylab("nGenes") + 
+    ggtitle("Sample complexity") + 
+    custom_theme() +
+    miller_continous_scale()
+  
+  if (cor) { 
+    p = p + 
+      geom_smooth(method = "lm") + 
+      stat_cor()
+  }
+  p 
+}
+
+#' Helper function to plot features
+#' 
+#' This function is equivalent to Seurat vlnPlot
+#' but can be customized in any way we want to show
+#' important QC metrics such as number of UMIs, detected
+#' genes or percentage of reads mapped to mitochondrial 
+#' or ribsomal genes.
+#' 
+#' @param df A dataframe containing information about QC metrics.
+#' This df should have a "libraryID" column.
+#' @param feature A character vector indicating the metadata variable 
+#' to plot (i.e. nUMIs)
+#' 
+#' @return A ggplot object showing the distribution of QC metrics
+#' across each cell in the library. 
+#' 
+#' @export
+#' 
+plotRNAFeature = function(seuratObj, feature) { 
+  df = seuratObj@meta.data
+  ggplot(df, aes_string(x="sample", y=feature)) + 
+    geom_violin(width = 0.3, fill = "azure3") + 
+    #geom_boxplot(width=0.2, outlier.shape = NA) + 
+    geom_jitter(width = 0.04, alpha=0.2, size=0.4) + 
+    custom_theme() +   
+    theme(aspect.ratio = 1.3)
+  
+}
+
+#' Plot features list
+#' 
+#' Wrapper of `plotRNAFeatures` to show several features
+#' at the same time
+#' 
+#' @param seuratObj A Seurat object with metadata relevant to
+#' QC metrics.
+#' @param features A character vector with several QC metrics
+#' to plot. 
+#' 
+#' @xport A list of ggplot objects with any specified metrics. 
+#' 
+plotRNAFeatureList = function(seuratObj, features) { 
+  features = features
+  plotList = lapply(features, plotRNAFeature, 
+                    seuratObj = seuratObj)
+  metricsPlot = ggarrange(plotlist = plotList)
+  return(metricsPlot)
+  }
 
 #' Custom theme to make ggplots prettier
 #' 
@@ -232,10 +334,10 @@ custom_theme =  function() {
              aspect.ratio = 1,
              panel.grid.minor = element_blank(),
              panel.grid.major = element_blank(),
-             axis.text = element_text(size=14),
-             axis.title = element_text(size=14),
-             title = element_text(size=14),
-             legend.text = element_text(size=14)
+             axis.text = element_text(size=12),
+             axis.title = element_text(size=12),
+             title = element_text(size=12),
+             legend.text = element_text(size=12)
            )
   )
 }

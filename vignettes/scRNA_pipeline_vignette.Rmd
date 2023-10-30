@@ -167,14 +167,14 @@ The entire pipeline can be run using the `doitall()` function. We just need to s
 ```{r, message=FALSE, results="hide", warning=FALSE}
 
 # Run pipeline
-cheng_pipeline_outs = scRNAutils::doitall(counts_matrix = cheng_test_library,
-                              study_id = "Cheng_et_al", 
-                              library_id = "cheng_library_1", 
-                              min_res = 0.3, 
-                              max_res = 1, 
-                              dbl_remove_iter = 3, 
-                              genes_of_interest = c("MYH11", "LMOD1", "LTBP1", 
-                                                    "CRTAC1", "IGFBP3", "FN1"))
+cheng_pipeline_outs = doItAll(countsMatrix = cheng_test_library,
+                              studyID = "Cheng_et_al", 
+                              libraryID = "cheng_library_1", 
+                              minRes = 0.3, 
+                              maxRes = 1, 
+                              dblFindIter =  3, 
+                              queryGenes = c("MYH11", "LMOD1", "LTBP1",
+                                             "CRTAC1", "IGFBP3", "FN1"))
 
 
 ```
