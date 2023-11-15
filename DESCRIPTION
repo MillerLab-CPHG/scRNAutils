@@ -7,6 +7,8 @@ Authors@R: c(person("Jose", "Verdezoto", role=c("aut", "cre"), email = "jev4xy@v
 Depends:
     R (>= 4.0),
     Seurat,
+    scater,
+    scuttle,
     glmGamPoi,
     tidyverse,
 Imports:
@@ -18,10 +20,12 @@ Imports:
     GenomeInfoDb,
     ggplot2,
     ggpubr,
+    ggrepel, 
     ggsci,
     methods,
     reshape2,
     RColorBrewer,
+    robustbase, 
     scDblFinder,
     SingleCellExperiment,
     stats,

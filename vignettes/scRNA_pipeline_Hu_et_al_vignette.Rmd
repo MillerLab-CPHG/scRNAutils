@@ -124,6 +124,10 @@ library(scRNAutils)
 # Load example library from Hu et al., 2021
 coronary2_p2_library = Seurat::Read10X("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/scRNA_raw_matrices/Hu_et_al_human_coronaries_aortas_pulmonary/cardiac_arteries_processed_data/patient2_CA2/")
 
+coronary1_p3_library = Seurat::Read10X("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/scRNA_raw_matrices/Hu_et_al_human_coronaries_aortas_pulmonary/cardiac_arteries_processed_data/patient3_CA1/")
+
+coronary2_p3_library = Seurat::Read10X("/project/cphg-millerlab/Jose/human_scRNA_meta_analysis/scRNA_raw_matrices/Hu_et_al_human_coronaries_aortas_pulmonary/cardiac_arteries_processed_data/patient3_CA2/")
+
 # Check we have the right input
 paste("The provided input is a", class(coronary2_p2_library))
 
