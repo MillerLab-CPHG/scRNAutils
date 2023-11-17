@@ -65,42 +65,45 @@ plotFeatureUMAPList = function(
 #' correlating 2 genes in a specific group of cell types.
 #' 
 #' @param seurat_obj A seurat object with normalized expression values
-#' @param target_coldata A character indicating the name of the metadata column with 
+#' @param targetColdata A character indicating the name of the metadata column with 
 #' the cell types of interest.
-#' @param target_anno A character vector with the names of the cell types in which we wish 
+#' @param targetAnno A character vector with the names of the cell types in which we wish 
 #' to correlate the genes. 
 #' @param assay A character indicating the assay from which to extract normalized counts. One of "SCT" or "RNA".  
-#' @param show_cor A boolean indicating whether we wish to calculate and show the correlation coefficient.
-#' @param cor_method A character indicating the correlation method to use. One of "pearson" or "spearman". 
+#' @param showCor A boolean indicating whether we wish to calculate and show the correlation coefficient.
+#' @param corMethod A character indicating the correlation method to use. One of "pearson" or "spearman". 
 #' @return A ggplot object correlating expression of two genes in specific cell populations.  
 #'
 #' @export 
 #' 
-plot2GeneCor = function(seurat_obj, 
-                        target_coldata,
-                        target_anno, target_genes, 
-                        show_cor=FALSE, cor_method="pearson",
-                        assay="SCT") {
-  
+plot2GeneCor = function(
+  seuratObj, 
+  targetGenes,
+  targetColData = NULL,
+  targetAnno = NULL, 
+  showCor = FALSE, 
+  corMethod = "pearson",
+  assay = "SCT"
+  ) {
   # Tidy df before plotting
-  df = scRNAutils::tidy_seurat_counts(seurat_obj=seurat_obj,
-                                      target_coldata=target_coldata,
-                                      target_anno=target_anno,
-                                      assay=assay)
+  df = tidySeuratCounts(
+    seuratObj = seuratObj,
+    targetColData = targetColData,
+    targetAnno = targetAnno,
+    assay = assay)
   p = df %>% 
-    ggplot(aes_string(x=target_genes[1], 
-                      y=target_genes[2])) + 
-    geom_point() + 
+    ggplot(aes_string(
+      x = targetGenes[1], 
+      y = targetGenes[2])) + 
+    geom_jitter() + 
     custom_theme()  
-  
   # Show correlation coefficient if the user wants to do so
-  if(show_cor) { 
+  if(showCor) { 
     # Fit linear model 
     p = p + 
       geom_smooth(method="lm") + 
-      ggpubr::stat_cor(method=cor_method)
+      ggpubr::stat_cor(method = corMethod)
   }
-  
   return(p)
 }
 
@@ -126,29 +129,31 @@ plotGene2TranscriptomeCor = function(
   pointSize=0.9
   ){
   ggplot(corsDf, aes(
-    x=geneIndex, 
-    y=cor_estimate, 
-    color=cor_estimate, 
-    label=ifelse(gene %in% genesToLabel, gene, "")
+    x = geneIndex, 
+    y = corEstimate, 
+    color = corEstimate, 
+    label = ifelse(gene %in% genesToLabel, gene, "")
     )
     ) + 
     geom_point(size=pointSize) +
     geom_text_repel(
       min.segment.length = 0, 
       max.overlaps = Inf, 
-      color="black", 
-      force=1, 
-      fontface="italic", 
-      size=4, 
+      color = "black", 
+      force = 1, 
+      fontface = "italic", 
+      size = 4, 
       segment.color = "grey27"
       ) +
-    ggtitle(paste0(targetGene, " Pearson correlations in ", targetCells)) +
+    ggtitle(paste0(
+      targetGene, 
+      " Pearson correlations in ", targetCells)) +
     xlab("Genes") + 
     ylab("Cor coeff") + 
     labs(color="r") +
     theme_bw() +
     scale_colour_viridis_c(option="magma") +
-    scale_x_continuous(limits=c(0, 20000)) +
+    scale_x_continuous(limits=c(0, nrow(corsDf) + 1000)) +
     theme(
       aspect.ratio = 1, 
       panel.grid.minor = element_blank(),

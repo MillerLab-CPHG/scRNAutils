@@ -13,39 +13,35 @@
 #' cell barcode matching the cluster ID or cell type annotation.  
 #' @export
 #' 
-tidy_seurat_counts = function(seurat_obj, assay="SCT", 
-                              target_coldata=NULL, 
-                              target_anno=NULL) {
-  
+tidySeuratCounts = function(
+  seuratObj, 
+  assay="SCT", 
+  targetColData=NULL, 
+  targetAnno=NULL
+  ) {
   # Get counts matrix
-  if (assay=="SCT") {
-    norm_counts = seurat_obj@assays$SCT@data
-  } else if (assay=="RNA") {
-    norm_counts = seurat_obj@assays$RNA@data
+  if (assay == "SCT") {
+    normCounts = seuratObj@assays$SCT@data
+  } else if (assay == "RNA") {
+    normCounts = seuratObj@assays$RNA@data
   } else {
     msg = ("The provided assay should be either SCT or RNA!")
     stop(msg)
   }
-  
-  norm_matrix_counts_df = as.data.frame(t(as.matrix(norm_counts)))
-  
-  # What if we want to extract the entire counts matrix
-  if (!is.null(target_anno) & !is.null(target_coldata)) {
-    meta_df = seurat_obj@meta.data
-    
-    # Subset df
-    meta_df_subset = meta_df[meta_df[[target_coldata]] %in% target_anno, ]
-    target_barcodes = rownames(meta_df_subset)
-    names(target_barcodes) = meta_df_subset[[target_coldata]]
+  normMatrixDf = as.data.table(t(as.matrix(normCounts)))
+  if (!is.null(targetAnno) && !is.null(targetColData)) {
+    metaDf = seuratObj@meta.data
+    # Subset df and name barcodes with cell type annotations
+    metaDfsubset = metaDf[meta_df[[targetColdata]] %in% targetAnno, ]
+    targetBarcodes = rownames(metaDfsubset)
+    names(targetBarcodes) = metaDfsubset[[targetColData]]
     
     # Subset counts df to keep only cell types of interest
-    counts_df_subset = norm_matrix_counts_df[target_barcodes,]
-    
-    # Add a column matching the cell barcode to its corresponding annotation 
-    counts_df_subset$annotation = names(target_barcodes)
-    return(counts_df_subset)
+    countsDfsubset = normMatrixDf[targetBarcodes,]
+    countsDfsubset$annotation = names(targetBarcodes)
+    return(countsDfsubset)
   } else {
-    return(norm_matrix_counts_df)
+    return(normMatrixDf)
   }
 } 
 

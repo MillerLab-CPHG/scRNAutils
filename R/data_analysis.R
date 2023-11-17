@@ -401,7 +401,7 @@ calcGeneCors = function(
     drop_na() %>%
     mutate(geneIndex = seq_along(gene)) %>%
     filter(!gene==targetGene) %>%
-    dplyr::rename(cor_estimate = estimate)
+    dplyr::rename(corEstimate = estimate)
   return(corsDfGenes)
 }
 
