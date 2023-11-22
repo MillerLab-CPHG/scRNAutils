@@ -2,7 +2,7 @@
 
 #' Process scRNA libraries 
 #' 
-#' A function that will handle QC (doublet and ambient RNA removal) and processing for individual scRNA libraries
+#' A function that will handle QC (doublet and ambient RNA removal) and robust processing for individual scRNA libraries
 #' 
 #' @param countsMatrix sparse count matrix required as initial input. As of now, make it accept 
 #' a filtered_feature_bc_matrix with a Seurat::Read10X or a txt file. Maybe this is better
@@ -13,7 +13,12 @@
 #' @param minRes A numeric indicating lower boundary for sil analysis
 #' @param maxRes A numeric indicating upper boundary for sil analysis
 #' @param dblFindIter A numeric indicating how many iterations we need to run for getting consensus doublets
-#' @param queryGenes A character vector with genes of interest for checking expression before and after QC.
+#' @param seuratFilter A boolean indicating whether we wish to remove low quality cells
+#' @param setAutoThreshold A boolean indicating whether we should perform adaptive QC thresholding using the MAD. 
+#' @param regressMitoRibo A boolean indicating whether mitochondorial and ribosomal variance should be regressed out.
+#' @param rmMitoRiboVarGenes A boolean indicating whether to remove mitochondorial and ribosomal genes from set of variable features. 
+#' @param clusteringAlg A character vector indicating whether to perform louvain or leiden clustering.
+#' @param queryFeatures A character vector with genes of interest for checking expression before and after QC.
 #' @param minUMI A numeric indicating min number of UMIs to keep.
 #' @param maxUMI A numeric indicating max number of UMIs to keep.
 #' @param minFeatures A numeric indicating the minimum number of genes cells should express to be included.
@@ -23,10 +28,10 @@
 #' @param arterialOrigin A character string indicating vascualr bed of the data.
 #' @param diseaseStatus A character string indicating disease status of the library (e.g., lesion vs non-lesion)
 #' @param sex A character string indicating sex of the subject. 
-#' @return A list where the first object is the processed Seurat obj and remaining objects are UMAP plots before and after QC. 
+#' @return A list where the first object is the processed Seurat obj and a bunch of other QC stats and plots. 
 #' @export
 #' @examples 
-#' seurat_outs = doitall(counts_matrix, "rpe004", "pan_et_al")
+#' outs = doitall(counts_matrix, "rpe004", "pan_et_al")
 doItAll = function(
   countsMatrix, 
   libraryID,
@@ -34,11 +39,12 @@ doItAll = function(
   minRes = 0.2, 
   maxRes = 1.9, 
   dblFindIter = 3,
-  setAutoThreshold = FALSE,
+  seuratFilter = TRUE,
+  setAutoThreshold = TRUE,
   regressMitoRibo = FALSE,
-  rmMitoRiboVarGenes = FALSE,
+  rmMitoRiboVarGenes = TRUE,
   clusteringAlg = "louvain",
-  queryGenes = NULL,
+  queryFeatures = NULL,
   minUMI = 500,
   maxUMI = 20000,
   minFeatures = 200,
@@ -64,20 +70,20 @@ doItAll = function(
   message(paste("Your prefiltered count matrix has", 
                 dim(countsMatrix)[1], "genes and",
                 preQCcols, "cells"))
-  # QC (removal of doublets); Prelim round of clustering
+  # Do a first round of clustering for doublet removal
   seuratObj = CreateSeuratObject(
     counts = countsMatrix,
     project = libraryID,
     min.cells = 10,
     min.features = 200
     )
-  # Do a first round of clustering for doublet removal
-  # Set the seurat_filter arg to FALSE
   seuratObj = seuratSCTprocess(
     seuratObj = seuratObj, 
     libraryID = libraryID, 
     studyID = studyID, 
-    seuratFilter = FALSE
+    seuratFilter = FALSE,
+    regressMitoRibo = FALSE,
+    rmMitoRiboVarGenes = FALSE
     )
   # Return some key pre-QC metrics 
   qcMetrics = c("nFeature_RNA", "nCount_RNA", "percent.mt", 
@@ -89,7 +95,7 @@ doItAll = function(
   summaryDF = makeSumStatsDF(seuratObj = seuratObj)
   complexityPlot = plotRNAcomplexity(seuratObj = seuratObj, cor = TRUE)
   
-  # Define range of resolutions to test, create euclidean distance matrix and calculate silhouette coeffs
+  # Define res range, create euclidean dist matrix and calculate silhouette coeffs
   message("--------------------------------------------------------------------------------
   Calculating maximum avg silhouette score for the provided clustering resolutions
   --------------------------------------------------------------------------------")
@@ -108,10 +114,10 @@ doItAll = function(
   preQCclusters = DimPlot(seuratObj, reduction = "umap", label = TRUE)
   
   # Produce a list of whatever genes the user needs
-  if (!is.null(queryGenes)) {
-    preQCfeatures = plotGeneUMAP(
+  if (!is.null(queryFeatures)) {
+    preQCfeatures = plotFeatureUMAPList(
       seuratObj = seuratObj,
-      queryGenes = queryGenes
+      queryFeatures =  queryFeatures
       )
   }
   # STEP 3: Remove doublets with our scDblFinder wrapper
@@ -167,10 +173,10 @@ doItAll = function(
     arterialOrigin = arterialOrigin,
     diseaseStatus = diseaseStatus,
     sex = sex,
-    rmMitoRiboVarGenes = TRUE,
-    seuratFilter = TRUE,
-    setAutoThreshold = TRUE,
-    regressMitoRibo = FALSE
+    seuratFilter = seuratFilter,
+    setAutoThreshold = setAutoThreshold,
+    regressMitoRibo = regressMitoRibo,
+    rmMitoRiboVarGenes = rmMitoRiboVarGenes
     )
   # Add complexity scores into metadata
   nGenes = seuratObj$nFeature_RNA
@@ -199,17 +205,10 @@ doItAll = function(
   seuratObj = FindClusters(
     seuratObj,
     resolution = clusterResPos,
-    algorithm = ifelse(
-      clusteringAlg == "louvain", 1, 4)
-    )
+    algorithm = ifelse(clusteringAlg == "louvain", 1, 4))
   # Make QC plots
   message("Producing output plots...")
   postQCclusters = DimPlot(seuratObj, reduction = "umap", label = TRUE)
-  postQCmetrics = plotRNAFeatureList(seuratObj = seuratObj,
-                                     features = qcMetrics)
-  postQCSummary = makeSumStatsDF(seuratObj = seuratObj)
-  postQCcomplexity = plotRNAcomplexity(seuratObj = seuratObj, cor = TRUE)
-  postQCcomplexityHist = plotRNAcomplexityHist(seuratObj = seuratObj)
   percentPlots = plotFeatureUMAPList(seuratObj = seuratObj,
     queryFeatures = c(
       "percent.ribo", 
@@ -218,26 +217,26 @@ doItAll = function(
     )
   # Save post-QC plots and stats
   postQCcols = ncol(seuratObj)
-  topGenes = plotTopAvgExpr(seuratObj = seuratObj)
   postQCmetrics = list(
     cellNumber = data.frame(
       preQCcells = preQCcols,
       postQCcells = postQCcols
     ),
-    metricsPlot = postQCmetrics,
-    metricsSummary = postQCSummary,
-    libraryComplexity = postQCcomplexity,
-    complexityHist = postQCcomplexityHist,
+    metricsPlot = plotRNAFeatureList(seuratObj = seuratObj,
+                                     features = qcMetrics),
+    metricsSummary = makeSumStatsDF(seuratObj = seuratObj),
+    libraryComplexity = plotRNAcomplexity(seuratObj = seuratObj, cor = TRUE),
+    complexityHist = plotRNAcomplexityHist(seuratObj = seuratObj),
     contaminationScores = percentPlots$contamination_scores,
     percentRiboplot = percentPlots$percent.ribo,
     percentMTplot = percentPlots$percent.mt,
-    topGenes = topGenes
+    topGenes = plotTopAvgExpr(seuratObj = seuratObj)
     )
   # Produce list of gene expression plots after QC. 
-  if (!is.null(queryGenes)) {
-    postQCfeatures = plotGeneUMAP(
+  if (!is.null(queryFeatures)) {
+    postQCfeatures = plotFeatureUMAPList(
       seuratObj = seuratObj,
-      queryGenes = queryGenes
+      queryFeatures = queryFeatures
       )
   }
   Outputs = list(
@@ -247,7 +246,7 @@ doItAll = function(
     postQCstats = postQCmetrics,
     preQCclusters = preQCclusters,
     postQCclusters = postQCclusters)
-  if (!is.null(queryGenes)) { 
+  if (!is.null(queryFeatures)) { 
     Outputs[["preQCfeatures"]] = preQCfeatures
     Outputs[["postQCfeatures"]] = postQCfeatures
   }

@@ -290,32 +290,31 @@ calcSilscores = function(
   # Cluster data with each of the resolutions provided
   for (i in seq_along(clusteringRes)) { 
     tryCatch({
-    message("Clustering data...")
-    seuratObj = FindClusters(
-      seuratObj,
-      resolution = clusteringRes[i],
-      algorithm = ifelse(clusteringAlg == "louvain", 1, 4)
-      )
-    clusters = seuratObj$seurat_clusters
-    if (length(unique(clusters)) > 1) {
-      message("Calculating silhouette scores for defined resolutions...")
-      sil = cluster::silhouette(
-        x = as.numeric(x = as.factor(x = clusters)), 
-        dist = distMatrix
+      message("Clustering data...")
+      seuratObj = FindClusters(
+        seuratObj,
+        resolution = clusteringRes[i],
+        algorithm = ifelse(clusteringAlg == "louvain", 1, 4)
         )
-      silDf = data.frame(
-        cluster=sil[, 1],
-        neighbor=sil[, 2],
-        silWidth=sil[, 3]
-        )
-      silScoresList[[i]] = silDf
-      names(silScoresList)[[i]] = paste(
-        "res",
-        as.character(clusteringRes[i]),
-        sep = "_")
-      }
-    }, error = function(e) {cat("Error: ", conditionMessage(e), "\n")})
-  }
+      clusters = seuratObj$seurat_clusters
+      if (length(unique(clusters)) > 1) {
+        message("Calculating silhouette scores for resolution: ", clusteringRes[i])
+        sil = cluster::silhouette(
+          x = as.numeric(x = as.factor(x = clusters)), 
+          dist = distMatrix
+          )
+        silDf = data.frame(
+          cluster=sil[, 1],
+          neighbor=sil[, 2],
+          silWidth=sil[, 3]
+          )
+        silScoresList[[i]] = silDf
+        names(silScoresList)[[i]] = paste("res", as.character(clusteringRes[i]), sep = "_")
+        }
+      }, error = function(e) {
+        cat("Error: ", conditionMessage(e), "\n")
+      })
+    }
   resolutionsSilDf = data.table::rbindlist(
     silScoresList,
     idcol = TRUE)
@@ -366,7 +365,8 @@ calcGeneCors = function(
   metadataDf = seuratObj@meta.data
   if (!is.null(annoVariable)) {
     if (is.null(cellTypes)) {
-      stop("Please provide a list of cell type annotations!")
+      stop("Please provide a list of cell type annotations in ", 
+           annoVariable)
     }
     cellsVector = metadataDf %>%
       dplyr::filter(annoVariable %in% cellTypes)
