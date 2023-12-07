@@ -16,7 +16,8 @@
 #' @param seuratFilter A boolean indicating whether we wish to remove low quality cells
 #' @param setAutoThreshold A boolean indicating whether we should perform adaptive QC thresholding using the MAD. 
 #' @param regressMitoRibo A boolean indicating whether mitochondorial and ribosomal variance should be regressed out.
-#' @param rmMitoRiboVarGenes A boolean indicating whether to remove mitochondorial and ribosomal genes from set of variable features. 
+#' @param rmMitoRiboVarGenes A boolean indicating whether to remove mitochondorial and ribosomal genes from set of variable features.
+#' @param autoSelectPCs A boolean indicating whether to determine the number of PCs in a data-driven way. 
 #' @param clusteringAlg A character vector indicating whether to perform louvain or leiden clustering.
 #' @param queryFeatures A character vector with genes of interest for checking expression before and after QC.
 #' @param minUMI A numeric indicating min number of UMIs to keep.
@@ -43,6 +44,7 @@ doItAll = function(
   setAutoThreshold = TRUE,
   regressMitoRibo = FALSE,
   rmMitoRiboVarGenes = TRUE,
+  autoSelectPCs = TRUE,
   clusteringAlg = "louvain",
   queryFeatures = NULL,
   minUMI = 500,
@@ -53,7 +55,9 @@ doItAll = function(
   maxHbPercent = 1,
   arterialOrigin = NULL,
   diseaseStatus = NULL,
-  sex = NULL
+  sex = NULL,
+  makeAnnData = FALSE,
+  annDataPath = NULL
   ){
   # Validate counts matrix input
   if (!methods::is(countsMatrix, "dgCMatrix")) {
@@ -81,6 +85,7 @@ doItAll = function(
     seuratObj = seuratObj, 
     libraryID = libraryID, 
     studyID = studyID, 
+    autoSelectPCs = autoSelectPCs,
     seuratFilter = FALSE,
     regressMitoRibo = FALSE,
     rmMitoRiboVarGenes = FALSE
@@ -176,7 +181,8 @@ doItAll = function(
     seuratFilter = seuratFilter,
     setAutoThreshold = setAutoThreshold,
     regressMitoRibo = regressMitoRibo,
-    rmMitoRiboVarGenes = rmMitoRiboVarGenes
+    rmMitoRiboVarGenes = rmMitoRiboVarGenes,
+    autoSelectPCs = autoSelectPCs
     )
   # Add complexity scores into metadata
   nGenes = seuratObj$nFeature_RNA
@@ -239,13 +245,29 @@ doItAll = function(
       queryFeatures = queryFeatures
       )
   }
-  Outputs = list(
+  # Convert Seurat obj into anndata
+  if (makeAnnData) {
+    message("Converting Seurat object into AnnData object...")
+    adataObj = sceasy::convertFormat(
+      obj = seuratObj,
+      from = c("seurat"),
+      to = c("anndata"),
+      assay = "SCT",
+      main_layer = "counts"
+      outfile = if(!dir.exists(annDataPath)) {
+        dir.create(annDataPath)
+      }
+      )
+  }
+  outputs = list(
     seuratObj = seuratObj,
     doubletBC = doubletIDs,
     preQCstats = preQCmetrics,
     postQCstats = postQCmetrics,
     preQCclusters = preQCclusters,
-    postQCclusters = postQCclusters)
+    postQCclusters = postQCclusters,
+    anndataObj = adataObj
+    )
   if (!is.null(queryFeatures)) { 
     Outputs[["preQCfeatures"]] = preQCfeatures
     Outputs[["postQCfeatures"]] = postQCfeatures
@@ -254,7 +276,7 @@ doItAll = function(
   The input library has been succesfully processed :)
   ---------------------------------------------------")
   
-  return(Outputs)
+  return(outputs)
 }
 
 

@@ -349,6 +349,7 @@ plotRNAFeature = function(seuratObj, feature) {
 #' 
 plotTopAvgExpr = function(
   seuratObj, 
+  makeBoxplot = FALSE,
   nGenes = 50
   ){
  avgExpr = AverageExpression(
@@ -357,19 +358,37 @@ plotTopAvgExpr = function(
    assays = c("SCT"), 
    group.by = "sample"
    )
-    
   avgExprdf = as.data.frame(avgExpr$SCT)
-  p = avgExprdf %>%
+  topGenes = avgExprdf %>%
     rownames_to_column(var = "gene") %>%
     arrange(desc(all)) %>% 
-    head(n = nGenes) %>%
+    head(n = nGenes) 
+  # Make plot
+  p = topGenes %>% 
     ggplot(aes(x = reorder(gene, all), 
                y = all)) + 
-    geom_col() + 
+    #geom_col() +
+    geom_point(size=0.1) + 
+    geom_boxplot(width = 0.2) + 
     xlab("Genes") + 
     ylab("Normalized expression") + 
     custom_theme() + 
     coord_flip()
+  if (makeBoxplot) {
+    topCounts = seuratObj@assays$SCT@data[topGenes$gene, ]
+    countsDf = t(as.data.frame(topCounts))
+    reshapedCountsDf = reshape2::melt(countsDf)
+    p = reshapedCountsDf %>%
+      ggplot(aes(x = reorder(Var2, value), y = value, fill = Var2)) + 
+      #geom_point(size = 0.2) + 
+      geom_boxplot(outlier.shape = NA) + 
+      xlab("Genes") + 
+      ylab("Normalized expression") + 
+      coord_flip() + 
+      custom_theme() + 
+      theme(legend.position = "none")
+  }
+  p
 }
 
 #' Plot features list

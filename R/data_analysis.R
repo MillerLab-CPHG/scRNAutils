@@ -17,10 +17,8 @@ scDblFinderClusters = function(
   multisampleDataset = FALSE, 
   sampleIDs = NULL
   ){
-  
   # Create a temp single cell experiment object
   sampleSce = as.SingleCellExperiment(seuratObj)
-  
   # If we have more than one sample in a dataset, use the samples parameter
   if (multisampleDataset) {
     sampleSceDbl = replicate(
@@ -40,7 +38,6 @@ scDblFinderClusters = function(
       )
   }
   newSeurat = lapply(sampleSceDbl, as.Seurat)
-  
   # Get barcodes that were tagged as doublets
   res = lapply(newSeurat, 
                function(x){
@@ -48,7 +45,6 @@ scDblFinderClusters = function(
                    filter(scDblFinder.class == "doublet") %>% 
                    rownames()})
   rm(sampleSce)
-  
   # Get consensus doublet calls between the desired number of runs
   consensusDbl = Reduce(intersect, res[1:length(res)])
   return(consensusDbl)
@@ -103,6 +99,8 @@ decontXremove = function(seuratObj) {
 #' low quality cells. This approach uses the Median Absolute Deviation (MAD).  
 #' @param rmMitoRiboVarGenes A boolean indicating whether we should remove Mito and Ribo genes from 
 #' the set of highly variable features.  
+#' @param autoSelectPCs A boolean indicating whether to determine the number of PCs in a data-driven way. 
+#' 
 #' @return A seurat object that has been SCT normalized, nearest neighbors graph and UMAP embeddings.
 seuratSCTprocess = function(
   seuratObj, 
@@ -120,7 +118,8 @@ seuratSCTprocess = function(
   regressMitoRibo = FALSE,
   seuratFilter = FALSE,
   setAutoThreshold = TRUE,
-  rmMitoRiboVarGenes = FALSE
+  rmMitoRiboVarGenes = FALSE,
+  autoSelectPCs = TRUE
   ){
   # Define sample and study IDs as core metadata values. 
   if (is.null(libraryID) || is.null(studyID)) { 
@@ -220,25 +219,34 @@ seuratSCTprocess = function(
                             cellCycleVec
                           }
   )
-  # Remove mito and ribosomal genes from set of variable of features
+  # Remove mito and ribosomal genes from set of variable features
   if (rmMitoRiboVarGenes) {
     message("Removing Mito and Ribosomal genes from Variable features...")
     mitoIndex = grep(rownames(seuratObj), pattern = "^MT-")
     mitoGenes = rownames(seuratObj)[mitoIndex]
     varGenes = setdiff(
       VariableFeatures(seuratObj), 
-      c(mitoGenes, riboGenes)
+      c(mitoGenes, riboGenes, "MALAT1")
       )
     VariableFeatures(seuratObj) = varGenes
   } 
- 
-  # Use VarGenes for dimensionality reduction and clustering
+  # Use VarGenes for dim reduction and clustering
   seuratObj = RunPCA(
     seuratObj, 
     features = VariableFeatures(seuratObj)
-    ) %>% 
-    FindNeighbors(reduction = "pca", dims = 1:30, k.param = 20) %>%
-    RunUMAP(dims = 1:30, n.neighbors = 30)
+    ) 
+  nPCs = selectPCs(seuratObj = seuratObj)
+  message(paste0(nPCs, " PCs explain 90% of the variance in your library..."))
+  seuratObj = FindNeighbors(
+    seuratObj, 
+    reduction = "pca", 
+    dims = if(autoSelectPCs) 1:nPCs else 1:30, 
+    k.param = 20
+    ) %>%
+    RunUMAP(
+      dims = if (autoSelectPCs) 1:nPCs else 1:30, 
+      n.neighbors = 30
+      )
   return(seuratObj)
 }
 
@@ -262,6 +270,30 @@ makeSumStatsDF = function(seuratObj) {
   summaryDF = as.data.frame(do.call(rbind, metricsSummary))
   return(summaryDF)
 }
+
+#' Select n PCs
+#'
+#' This function will find the number of PCs explaining the largest
+#' amount of variation in the data, which we need
+#' for clustering and UMAP in a more data-driven way.
+#' 
+#' @param seuratObj A seurat obj with a computed DimReduc object
+#' @return A numeric indicating the number of PCs we need to explain the largest variation
+#'
+selectPCs = function(seuratObj) { 
+  # Extract eigen values and calc % variation
+  message("Selecting the n PCs that capture 90% of variation...")
+  eigenVals = seuratObj@reductions$pca@stdev
+  explainedVar = eigenVals / sum(eigenVals) * 100
+  cumVar = cumsum(explainedVar)
+  co1 = which(cumVar > 90 & explainedVar < 5)[1]
+  # Second metric: point where change in variation is less than 0.1%
+  #varDelta = c(0, abs(diff(explainedVar)))
+  #co2 = sort(which(varDelta > 0.1), decreasing = TRUE)[1]
+  #nPCs = min(co1, co2)
+  return(co1)
+  }
+
 
 #' Calculation of silhouette scores
 #' 
@@ -400,7 +432,7 @@ calcGeneCors = function(
     arrange(desc(estimate)) %>%
     drop_na() %>%
     mutate(geneIndex = seq_along(gene)) %>%
-    filter(!gene==targetGene) %>%
+    filter(!gene == targetGene) %>%
     dplyr::rename(corEstimate = estimate)
   return(corsDfGenes)
 }

@@ -27,6 +27,7 @@ Imports:
     RColorBrewer,
     robustbase, 
     scDblFinder,
+    sceasy,
     SingleCellExperiment,
     stats,
     utils,
