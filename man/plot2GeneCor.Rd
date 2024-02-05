@@ -5,29 +5,29 @@
 \title{Make a function to visualize the correlation between two genes.}
 \usage{
 plot2GeneCor(
-  seurat_obj,
-  target_coldata,
-  target_anno,
-  target_genes,
-  show_cor = FALSE,
-  cor_method = "pearson",
+  seuratObj,
+  targetGenes,
+  targetColData = NULL,
+  targetAnno = NULL,
+  showCor = FALSE,
+  corMethod = "pearson",
   assay = "SCT"
 )
 }
 \arguments{
-\item{seurat_obj}{A seurat object with normalized expression values}
-
-\item{target_coldata}{A character indicating the name of the metadata column with 
-the cell types of interest.}
-
-\item{target_anno}{A character vector with the names of the cell types in which we wish 
+\item{targetAnno}{A character vector with the names of the cell types in which we wish 
 to correlate the genes.}
 
-\item{show_cor}{A boolean indicating whether we wish to calculate and show the correlation coefficient.}
+\item{showCor}{A boolean indicating whether we wish to calculate and show the correlation coefficient.}
 
-\item{cor_method}{A character indicating the correlation method to use. One of "pearson" or "spearman".}
+\item{corMethod}{A character indicating the correlation method to use. One of "pearson" or "spearman".}
 
 \item{assay}{A character indicating the assay from which to extract normalized counts. One of "SCT" or "RNA".}
+
+\item{seurat_obj}{A seurat object with normalized expression values}
+
+\item{targetColdata}{A character indicating the name of the metadata column with 
+the cell types of interest.}
 }
 \value{
 A ggplot object correlating expression of two genes in specific cell populations.

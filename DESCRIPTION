@@ -1,28 +1,29 @@
 Package: scRNAutils
-Title: Comprehensive pipeline for scRNA-seq data analysis.
-Version: 0.0.1
-Date: 2023-04-19
-Description: A package providing a pipeline for scRNA data analysis and some other useful functions. 
-Authors@R: c(person("Jose", "Verdezoto", role=c("aut", "cre"), email = "jev4xy@virginia.edu"))
+Title: Comprehensive Pipeline for scRNA-seq Data Analysis
+Version: 0.0.2
+Date: 2024-02-02
+Description: A package providing a pipeline for scRNA data analysis and some 
+    other useful functions for data analysis and visualization. 
+Authors@R: person("Jose", "Verdezoto Mosquera", role=c("aut", "cre"), email = "jev4xy@virginia.edu")
 Depends:
     R (>= 4.0),
-    Seurat,
-    scater,
-    scuttle,
+    Seurat (>= 5.0.0),
     glmGamPoi,
-    tidyverse,
+    magrittr,
+    scater,
+    scuttle
 Imports:
     broom,
     celda,
     cluster,
     data.table,
     dplyr,
-    GenomeInfoDb,
     ggplot2,
     ggpubr,
     ggrepel, 
     ggsci,
     methods,
+    plyr,
     reshape2,
     RColorBrewer,
     robustbase, 
@@ -30,19 +31,21 @@ Imports:
     sceasy,
     SingleCellExperiment,
     stats,
-    utils,
+    tibble,
+    utils
 Suggests:
     AnnotationFilter,
-    rtracklayer,
-    testthat,
-    knitr,
     BiocStyle,
-    rmarkdown
+    knitr,
+    reticulate,
+    rmarkdown,
+    scRNAseq,
+    testthat
 LazyData: true
 VignetteBuilder: knitr
 License: BSD_2_clause + file LICENSE
 biocViews: Software, GenomeAnnotation, GenomeAssembly, DataRepresentation, Sequencing, 
             FunctionalGenomics, Visualization
-RoxygenNote: 7.1.1
-BugReports: http://github.com/MillerLab-CPHG/scRNAutils
+RoxygenNote: 7.2.3
+BugReports: http://github.com/MillerLab-CPHG/scRNAutils/issues
 Encoding: UTF-8

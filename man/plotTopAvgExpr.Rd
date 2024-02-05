@@ -4,10 +4,12 @@
 \alias{plotTopAvgExpr}
 \title{Plot the most highly expressed genes in the dataset}
 \usage{
-plotTopAvgExpr(seuratObj, nGenes = 50)
+plotTopAvgExpr(seuratObj, makeBoxplot = FALSE, nGenes = 50)
 }
 \arguments{
 \item{seuratObj}{A Seurat object with the metadata variable "sample"}
+
+\item{makeBoxplot}{A boolean indicating whether we want to generate a box plot.}
 
 \item{nGenes}{A numeric indicating how many genes to plot. Default=50.}
 }

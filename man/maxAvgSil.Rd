@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_analysis.R
 \name{maxAvgSil}
 \alias{maxAvgSil}
-\title{Internal helper function to get the max sil score from calc_sil_scores()}
+\title{Internal helper function to get the max sil score from \code{calcSilScores}}
 \usage{
 maxAvgSil(silScoresDf)
 }
@@ -13,5 +13,5 @@ maxAvgSil(silScoresDf)
 A numeric indicating the maximum average sil sclore value across tested resolutions
 }
 \description{
-Internal helper function to get the max sil score from calc_sil_scores()
+Internal helper function to get the max sil score from \code{calcSilScores}
 }

@@ -8,19 +8,22 @@ seuratSCTprocess(
   seuratObj,
   libraryID,
   studyID,
+  arterialOrigin,
   minUMI = 500,
   maxUMI = 20000,
   minFeatures = 200,
   maxFeatures = 4000,
   maxMtPercent = 10,
   maxHbPercent = 1,
-  arterialOrigin = NULL,
   diseaseStatus = NULL,
+  age = NULL,
   sex = NULL,
+  race = NULL,
   regressMitoRibo = FALSE,
   seuratFilter = FALSE,
   setAutoThreshold = TRUE,
-  rmMitoRiboVarGenes = FALSE
+  rmMitoRiboVarGenes = FALSE,
+  autoSelectPCs = TRUE
 )
 }
 \arguments{
@@ -29,6 +32,8 @@ seuratSCTprocess(
 \item{libraryID}{A character indicating name of the sample.}
 
 \item{studyID}{A character indicating name of the study.}
+
+\item{arterialOrigin}{A character indicating arterial bed of the library.}
 
 \item{minUMI}{A numeric indicating min number of UMIs to keep.}
 
@@ -42,11 +47,13 @@ seuratSCTprocess(
 
 \item{maxHbPercent}{A numeric indicating the max percentage of reads mapped to hemoglobin genes.}
 
-\item{arterialOrigin}{A character indicating arterial bed of the library.}
-
 \item{diseaseStatus}{A character indicating the disease status of the library (e.g., non-lesion, lesion).}
 
-\item{sex}{A character string indicating sex of the subject.}
+\item{age}{A character vector indicating age of the subject.}
+
+\item{sex}{A character vector indicating sex of the subject.}
+
+\item{race}{A character vector indicating race of the subject.}
 
 \item{seuratFilter}{A boolean indicating whether we wish to filter low quality cells. 
 Set to FALSE in pre-processing round for doublet removal.}
@@ -56,6 +63,8 @@ low quality cells. This approach uses the Median Absolute Deviation (MAD).}
 
 \item{rmMitoRiboVarGenes}{A boolean indicating whether we should remove Mito and Ribo genes from 
 the set of highly variable features.}
+
+\item{autoSelectPCs}{A boolean indicating whether to determine the number of PCs in a data-driven way.}
 
 \item{regressMito}{A boolean indicating whether to regress out Mitochondrial variance or not.}
 }

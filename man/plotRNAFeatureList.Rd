@@ -13,6 +13,9 @@ QC metrics.}
 \item{features}{A character vector with several QC metrics
 to plot.}
 }
+\value{
+A list of ggplot objects with any specified metrics.
+}
 \description{
 Wrapper of `plotRNAFeatures` to show several features
 at the same time

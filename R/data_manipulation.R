@@ -21,9 +21,9 @@ tidySeuratCounts = function(
   ) {
   # Get counts matrix
   if (assay == "SCT") {
-    normCounts = seuratObj@assays$SCT@data
+    normCounts = seuratObj[["SCT"]]$data
   } else if (assay == "RNA") {
-    normCounts = seuratObj@assays$RNA@data
+    normCounts = seuratObj[["RNA"]]$data
   } else {
     msg = ("The provided assay should be either SCT or RNA!")
     stop(msg)

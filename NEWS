@@ -1,0 +1,10 @@
+# Change log
+All notable changes to this project will be documented in this file. Here we
+will document changes to major releases only (not point relases). 
+
+## [0.0.2] -- 2024-02-05
+  - Added outlier-based detection of low quality cells
+  - Fixed bugs inherent to change to Seurat v5
+  - Added more informative QC plots including the top N most expressed genes
+  - Fixed issues with package function imports when running doItAll
+  - Implemented conversion of output Seurat object into Anndata object

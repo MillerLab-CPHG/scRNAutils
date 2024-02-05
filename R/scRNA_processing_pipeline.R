@@ -26,17 +26,21 @@
 #' @param maxFeatures A numeric indicating the maximum number of genes cells should express to be included.
 #' @param maxMtPercent A numeric indicating the max percentage of reads mapped to the mito genome. 
 #' @param maxHbPercent A numeric indicating the max percentage of reads mapped to hemoglobin genes. 
-#' @param arterialOrigin A character string indicating vascualr bed of the data.
-#' @param diseaseStatus A character string indicating disease status of the library (e.g., lesion vs non-lesion)
-#' @param sex A character string indicating sex of the subject. 
+#' @param arterialOrigin A character vector indicating vascualr bed of the data.
+#' @param diseaseStatus A character vector indicating disease status of the library (e.g., lesion vs non-lesion)
+#' @param age A character vector indicating age of the subject.
+#' @param sex A character vector indicating sex of the subject.
+#' @param race A character vector indicating race of the subject.
+#' @param makeAnnData A boolean indicating whether we want to generate an .h5ad file for the processed Seurat object.
+#' @param annDataParentDir A character vector indicating the parent directory where we want to save the produced .h5ad object.
 #' @return A list where the first object is the processed Seurat obj and a bunch of other QC stats and plots. 
 #' @export
-#' @examples 
-#' outs = doitall(counts_matrix, "rpe004", "pan_et_al")
+#' 
 doItAll = function(
   countsMatrix, 
   libraryID,
   studyID,
+  arterialOrigin,
   minRes = 0.2, 
   maxRes = 1.9, 
   dblFindIter = 3,
@@ -53,11 +57,12 @@ doItAll = function(
   maxFeatures = 4000,
   maxMtPercent = 10,
   maxHbPercent = 1,
-  arterialOrigin = NULL,
   diseaseStatus = NULL,
+  age = NULL,
   sex = NULL,
+  race = NULL,
   makeAnnData = FALSE,
-  annDataPath = NULL
+  annDataParentDir = NULL
   ){
   # Validate counts matrix input
   if (!methods::is(countsMatrix, "dgCMatrix")) {
@@ -74,6 +79,7 @@ doItAll = function(
   message(paste("Your prefiltered count matrix has", 
                 dim(countsMatrix)[1], "genes and",
                 preQCcols, "cells"))
+  
   # Do a first round of clustering for doublet removal
   seuratObj = CreateSeuratObject(
     counts = countsMatrix,
@@ -85,6 +91,7 @@ doItAll = function(
     seuratObj = seuratObj, 
     libraryID = libraryID, 
     studyID = studyID, 
+    arterialOrigin = arterialOrigin,
     autoSelectPCs = autoSelectPCs,
     seuratFilter = FALSE,
     regressMitoRibo = FALSE,
@@ -105,7 +112,8 @@ doItAll = function(
   Calculating maximum avg silhouette score for the provided clustering resolutions
   --------------------------------------------------------------------------------")
   clusteringRes = seq(minRes, maxRes, by = 0.1)
-  prefiltSilcoeff = calcSilscores(seuratObj, clusteringRes)
+  prefiltSilcoeff = calcSilScores(seuratObj, clusteringRes)
+  
   # Get mean sil_scores per resolution 
   if (!all(sapply(prefiltSilcoeff, is.null))) {
     clusterResPre = maxAvgSil(prefiltSilcoeff)
@@ -114,6 +122,7 @@ doItAll = function(
   } else {
     clusterResPre = minRes
   }
+  
   # Use the max avg sil value to cluster data
   seuratObj =  FindClusters(seuratObj, resolution = clusterResPre)
   preQCclusters = DimPlot(seuratObj, reduction = "umap", label = TRUE)
@@ -125,6 +134,7 @@ doItAll = function(
       queryFeatures =  queryFeatures
       )
   }
+  
   # STEP 3: Remove doublets with our scDblFinder wrapper
   message("------------------
   Finding doublets...
@@ -143,12 +153,14 @@ doItAll = function(
   doubletsUMAP = DimPlot(seuratObj, cells.highlight = doubletIDs) + 
     custom_theme() + 
     ggtitle("Consensus doublets")
+  
   # Add pre QC plots 
   preQCmetrics = list(
     metricsPlot = qcPlot, 
     metricsSummary = summaryDF,
     libraryComplexity = complexityPlot, 
     doubletsUMAP = doubletsUMAP)
+  
   # Create a new seurat obj keeping only singlets
   seuratObj = CreateSeuratObject(
     counts=countsMatrix[, singlets],
@@ -169,21 +181,24 @@ doItAll = function(
     seuratObj = seuratObj,
     libraryID = libraryID,
     studyID = studyID,
+    arterialOrigin = arterialOrigin,
     minUMI = minUMI,
     maxUMI = maxUMI,
     minFeatures = minFeatures,
     maxFeatures = maxFeatures,
     maxMtPercent = maxMtPercent,
     maxHbPercent = maxHbPercent,
-    arterialOrigin = arterialOrigin,
     diseaseStatus = diseaseStatus,
+    age = age,
     sex = sex,
+    race = race, 
     seuratFilter = seuratFilter,
     setAutoThreshold = setAutoThreshold,
     regressMitoRibo = regressMitoRibo,
     rmMitoRiboVarGenes = rmMitoRiboVarGenes,
     autoSelectPCs = autoSelectPCs
     )
+  
   # Add complexity scores into metadata
   nGenes = seuratObj$nFeature_RNA
   nUMIs = seuratObj$nCount_RNA
@@ -193,7 +208,7 @@ doItAll = function(
   message("-------------------------------------------------------------------------------
   Calculating maximum avg silhouette score for the provided clustering resolutions
   --------------------------------------------------------------------------------")
-  filteredSilCoeff = calcSilscores(
+  filteredSilCoeff = calcSilScores(
     seuratObj = seuratObj,
     clusteringRes,
     clusteringAlg = ifelse(clusteringAlg == "louvain", 
@@ -212,6 +227,7 @@ doItAll = function(
     seuratObj,
     resolution = clusterResPos,
     algorithm = ifelse(clusteringAlg == "louvain", 1, 4))
+  
   # Make QC plots
   message("Producing output plots...")
   postQCclusters = DimPlot(seuratObj, reduction = "umap", label = TRUE)
@@ -221,23 +237,21 @@ doItAll = function(
       "percent.mt",
       "contamination_scores")
     )
+  
   # Save post-QC plots and stats
   postQCcols = ncol(seuratObj)
   postQCmetrics = list(
-    cellNumber = data.frame(
-      preQCcells = preQCcols,
-      postQCcells = postQCcols
-    ),
-    metricsPlot = plotRNAFeatureList(seuratObj = seuratObj,
-                                     features = qcMetrics),
+    cellNumber = data.frame(preQCcells = preQCcols, postQCcells = postQCcols),
+    metricsPlot = plotRNAFeatureList(seuratObj = seuratObj, features = qcMetrics),
     metricsSummary = makeSumStatsDF(seuratObj = seuratObj),
     libraryComplexity = plotRNAcomplexity(seuratObj = seuratObj, cor = TRUE),
     complexityHist = plotRNAcomplexityHist(seuratObj = seuratObj),
     contaminationScores = percentPlots$contamination_scores,
     percentRiboplot = percentPlots$percent.ribo,
     percentMTplot = percentPlots$percent.mt,
-    topGenes = plotTopAvgExpr(seuratObj = seuratObj)
+    topGenes = plotTopAvgExpr(seuratObj = seuratObj, makeBoxplot = TRUE)
     )
+  
   # Produce list of gene expression plots after QC. 
   if (!is.null(queryFeatures)) {
     postQCfeatures = plotFeatureUMAPList(
@@ -245,33 +259,40 @@ doItAll = function(
       queryFeatures = queryFeatures
       )
   }
-  # Convert Seurat obj into anndata
+  
+  # Convert to Anndata
   if (makeAnnData) {
-    message("Converting Seurat object into AnnData object...")
-    adataObj = sceasy::convertFormat(
-      obj = seuratObj,
-      from = c("seurat"),
-      to = c("anndata"),
-      assay = "SCT",
-      main_layer = "counts"
-      outfile = if(!dir.exists(annDataPath)) {
-        dir.create(annDataPath)
-      }
-      )
+    if (!dir.exists(annDataParentDir)) {
+      message("Directory for output .h5ad file doesn't exist, creating one...")
+      dir.create(annDataParentDir)
+    }
+    message("Attempting to convert Seurat object into AnnData object...")
+    tryCatch({
+      sceasy::convertFormat(
+        obj = seuratObj,
+        from = c("seurat"),
+        to = c("anndata"),
+        assay = "SCT",
+        main_layer = "counts",
+        outFile = paste0(annDataParentDir, "/", unique(seuratObj$sample), ".h5ad")
+      )}, 
+      error = function(e) {cat("Sorry the object couldn't be converted", "\n", conditionMessage(e))}
+    )
   }
+  
   outputs = list(
     seuratObj = seuratObj,
     doubletBC = doubletIDs,
     preQCstats = preQCmetrics,
     postQCstats = postQCmetrics,
     preQCclusters = preQCclusters,
-    postQCclusters = postQCclusters,
-    anndataObj = adataObj
+    postQCclusters = postQCclusters
     )
   if (!is.null(queryFeatures)) { 
-    Outputs[["preQCfeatures"]] = preQCfeatures
-    Outputs[["postQCfeatures"]] = postQCfeatures
+    outputs[["preQCfeatures"]] = preQCfeatures
+    outputs[["postQCfeatures"]] = postQCfeatures
   }
+  
   message("---------------------------------------------------
   The input library has been succesfully processed :)
   ---------------------------------------------------")

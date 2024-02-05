@@ -8,23 +8,29 @@ doItAll(
   countsMatrix,
   libraryID,
   studyID,
+  arterialOrigin,
   minRes = 0.2,
   maxRes = 1.9,
   dblFindIter = 3,
-  setAutoThreshold = FALSE,
+  seuratFilter = TRUE,
+  setAutoThreshold = TRUE,
   regressMitoRibo = FALSE,
-  rmMitoRiboVarGenes = FALSE,
+  rmMitoRiboVarGenes = TRUE,
+  autoSelectPCs = TRUE,
   clusteringAlg = "louvain",
-  queryGenes = NULL,
+  queryFeatures = NULL,
   minUMI = 500,
   maxUMI = 20000,
   minFeatures = 200,
   maxFeatures = 4000,
   maxMtPercent = 10,
   maxHbPercent = 1,
-  arterialOrigin = NULL,
   diseaseStatus = NULL,
-  sex = NULL
+  age = NULL,
+  sex = NULL,
+  race = NULL,
+  makeAnnData = FALSE,
+  annDataParentDir = NULL
 )
 }
 \arguments{
@@ -37,13 +43,27 @@ but not priority right now}
 
 \item{studyID}{A character string indicating the study that generated the data.}
 
+\item{arterialOrigin}{A character vector indicating vascualr bed of the data.}
+
 \item{minRes}{A numeric indicating lower boundary for sil analysis}
 
 \item{maxRes}{A numeric indicating upper boundary for sil analysis}
 
 \item{dblFindIter}{A numeric indicating how many iterations we need to run for getting consensus doublets}
 
-\item{queryGenes}{A character vector with genes of interest for checking expression before and after QC.}
+\item{seuratFilter}{A boolean indicating whether we wish to remove low quality cells}
+
+\item{setAutoThreshold}{A boolean indicating whether we should perform adaptive QC thresholding using the MAD.}
+
+\item{regressMitoRibo}{A boolean indicating whether mitochondorial and ribosomal variance should be regressed out.}
+
+\item{rmMitoRiboVarGenes}{A boolean indicating whether to remove mitochondorial and ribosomal genes from set of variable features.}
+
+\item{autoSelectPCs}{A boolean indicating whether to determine the number of PCs in a data-driven way.}
+
+\item{clusteringAlg}{A character vector indicating whether to perform louvain or leiden clustering.}
+
+\item{queryFeatures}{A character vector with genes of interest for checking expression before and after QC.}
 
 \item{minUMI}{A numeric indicating min number of UMIs to keep.}
 
@@ -57,18 +77,21 @@ but not priority right now}
 
 \item{maxHbPercent}{A numeric indicating the max percentage of reads mapped to hemoglobin genes.}
 
-\item{arterialOrigin}{A character string indicating vascualr bed of the data.}
+\item{diseaseStatus}{A character vector indicating disease status of the library (e.g., lesion vs non-lesion)}
 
-\item{diseaseStatus}{A character string indicating disease status of the library (e.g., lesion vs non-lesion)}
+\item{age}{A character vector indicating age of the subject.}
 
-\item{sex}{A character string indicating sex of the subject.}
+\item{sex}{A character vector indicating sex of the subject.}
+
+\item{race}{A character vector indicating race of the subject.}
+
+\item{makeAnnData}{A boolean indicating whether we want to generate an .h5ad file for the processed Seurat object.}
+
+\item{annDataParentDir}{A character vector indicating the parent directory where we want to save the produced .h5ad object.}
 }
 \value{
-A list where the first object is the processed Seurat obj and remaining objects are UMAP plots before and after QC.
+A list where the first object is the processed Seurat obj and a bunch of other QC stats and plots.
 }
 \description{
-A function that will handle QC (doublet and ambient RNA removal) and processing for individual scRNA libraries
-}
-\examples{
-seurat_outs = doitall(counts_matrix, "rpe004", "pan_et_al")
+A function that will handle QC (doublet and ambient RNA removal) and robust processing for individual scRNA libraries
 }

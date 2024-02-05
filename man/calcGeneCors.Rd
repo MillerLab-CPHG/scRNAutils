@@ -32,3 +32,9 @@ A data.frame with the correlation of the target gene with all other genes in the
 \description{
 This function will calculate the correlation between a target gene and other genes in a specific group of cells.
 }
+\examples{
+\dontrun{
+calcGeneCors(seuratObj, targetGene = "MYH11")
+}
+
+}

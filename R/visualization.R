@@ -1,7 +1,5 @@
 
 
-
-
 #' Named list of seurat gene expression plots
 #' 
 #' A function that takes a seurat object as input and 
@@ -167,63 +165,55 @@ plotGene2TranscriptomeCor = function(
 #' 
 #' This function will plot normalized expression values across pseudotime
 #' 
-#' @param cds_ordered: A monocle3 cds object with cells ordered across pseudotime.
-#' @param cell_annotations: A vector with cell types of interest for plotting gene expression.
+#' @param cdsOrdered A monocle3 cds object with cells ordered across pseudotime.
+#' @param colDataVar A character indicating the name of the column with the cell type annotations.
+#' @param cellAnnotations A vector with cell types of interest for plotting gene expression.
 #' @param genes A Vector with the genes to be plotted across pseudotime.
-#' @param facet_wrap_plot A boolean indicating whether all genes shoud be shown in one or multiple plots.
-#' @param pseudotime_boundary A numeric indicating the upper boundary of pseudotime to be plotted. 
+#' @param facetWrap A boolean indicating whether all genes shoud be shown in one or multiple plots.
+#' @param pseudotimeBoundary A numeric indicating the upper boundary of pseudotime to be plotted. 
 #'  
 #' @return A ggplot object with one or multiple panels showing gene expression across pseudotime values.
-#' @export
+#'
 #' 
-plot_expression_on_pseudotime = function(
-  cds_ordered, 
-  cell_annotations, 
+plotExpressionOnPseudotime = function(
+  cdsOrdered, 
+  colDataVar,
+  cellAnnotations, 
   genes,
-  facet_wrap_plot = FALSE,
-  pseudotime_boundary = 30
+  facetWrap = FALSE,
+  pseudotimeBoundary = 30
   ){ 
-  
   # Create subset of the main cds object to contain only cell type annotations
   # and genes for plotting along pseudotime. 
-  cds_subset = cds_ordered[rowData(cds_ordered)$gene_short_name %in% genes,
-                           colData(cds_ordered)$prelim_annotations %in% cell_annotations]
-  
+  cdsSubset = cdsOrdered[rowData(cdsOrdered)$gene_short_name %in% genes,
+                           colData(cdsOrdered)[[colDataVar]] %in% cellAnnotations]
   # Create df of subset for gene expression across pseudotime plotting
-  cds_exprs = SingleCellExperiment::counts(cds_subset)
-  cds_exprs = Matrix::t(Matrix::t(cds_exprs))
-  cds_exprs = reshape2::melt(round(as.matrix(cds_exprs)))
-  colnames(cds_exprs) = c("Feature_id", "Cell", "Norm_expression")
-  
+  cdsExprs = SingleCellExperiment::counts(cdsSubset)
+  cdsExprs = Matrix::t(Matrix::t(cdsExprs))
+  cdsExprs = reshape2::melt(round(as.matrix(cdsExprs)))
+  colnames(cdsExprs) = c("Feature_id", "Cell", "Norm_expression")
   # Add pseudotime values for each cell
-  pseudotime = pseudotime(cds_subset)
-  cds_exprs$pseudotime = pseudotime[match(cds_exprs$Cell, 
-                                          names(pseudotime))]
-  
-  # Add annotations (column name of the annotations is fixed
-  # for the smc_rpca_sct_v3 subset)
-  annotations = colData(cds_subset)$prelim_annotations
-  names(annotations) = rownames(colData(cds_subset))
-  cds_exprs$annotations = annotations[match(cds_exprs$Cell, 
-                                            names(annotations))]
-  
-  # Order panels according to order of genes provided
-  cds_exprs$Feature_id = factor(cds_exprs$Feature_id,
+  pseudotime = pseudotime(cdsSubset)
+  cdsExprs$pseudotime = pseudotime[match(
+    cdsExprs$Cell, 
+    names(pseudotime)
+    )]
+  annotations = colData(cdsSubset)[[colDataVar]]
+  names(annotations) = rownames(colData(cdsSubset))
+  cdsExprs$annotations = annotations[match(cdsExprs$Cell, names(annotations))]
+  cdsExprs$Feature_id = factor(cdsExprs$Feature_id,
                                 levels = genes)
-  
   # Fit a cubic spline to normalized expression values across pseudotime
-  p =  ggplot(cds_exprs, aes(pseudotime, Norm_expression, fill=Feature_id)) + 
+  p =  ggplot(cdsExprs, aes(pseudotime, Norm_expression, fill=Feature_id)) + 
     geom_smooth(method = "lm", 
                 formula = y ~ splines::ns(x, 3), 
                 color="black") 
   p = p + 
-    xlim(0, pseudotime_boundary) + 
+    xlim(0, pseudotimeBoundary) + 
     scale_y_log10() + 
     ylab("SCTransform norm expression") + 
     custom_theme()
-  
-  # If we want to plot genes on different panels
-  if (facet_wrap_plot) { 
+  if (facetWrap) { 
     p = p + 
       facet_wrap(~Feature_id, scales = "free_y") + 
       theme(legend.position = "none",
@@ -249,10 +239,7 @@ plot_expression_on_pseudotime = function(
 #'
 #' @export
 #'
-plotRNAcomplexity = function(
-  seuratObj,
-  cor = FALSE
-  ){
+plotRNAcomplexity = function(seuratObj, cor = FALSE){
   df = seuratObj@meta.data
   p = ggplot(df, 
              aes_string(x = "nCount_RNA", y = "nFeature_RNA", 
@@ -271,7 +258,7 @@ plotRNAcomplexity = function(
   if (cor) { 
     p = p + 
       geom_smooth(method = "lm") + 
-      stat_cor()
+      ggpubr::stat_cor()
   }
   p 
 }
@@ -288,9 +275,7 @@ plotRNAcomplexity = function(
 #' 
 #' @export
 #' 
-plotRNAcomplexityHist = function(
-  seuratObj
-) {
+plotRNAcomplexityHist = function(seuratObj) {
   df = seuratObj@meta.data
   p = ggplot(df,
              aes_string(x = "log10GenesPerUMI")) +
@@ -342,6 +327,7 @@ plotRNAFeature = function(seuratObj, feature) {
 #' plots this value for the 50 most highly expressed.
 #' 
 #' @param seuratObj A Seurat object with the metadata variable "sample"
+#' @param makeBoxplot A boolean indicating whether we want to generate a box plot.
 #' @param nGenes A numeric indicating how many genes to plot. Default=50. 
 #' @return A ggplot object 
 #' 
@@ -360,16 +346,14 @@ plotTopAvgExpr = function(
    )
   avgExprdf = as.data.frame(avgExpr$SCT)
   topGenes = avgExprdf %>%
-    rownames_to_column(var = "gene") %>%
-    arrange(desc(all)) %>% 
+    tibble::rownames_to_column(var = "gene") %>%
+    dplyr::arrange(desc(all)) %>% 
     head(n = nGenes) 
   # Make plot
   p = topGenes %>% 
     ggplot(aes(x = reorder(gene, all), 
                y = all)) + 
-    #geom_col() +
-    geom_point(size=0.1) + 
-    geom_boxplot(width = 0.2) + 
+    geom_col() +
     xlab("Genes") + 
     ylab("Normalized expression") + 
     custom_theme() + 
@@ -380,7 +364,6 @@ plotTopAvgExpr = function(
     reshapedCountsDf = reshape2::melt(countsDf)
     p = reshapedCountsDf %>%
       ggplot(aes(x = reorder(Var2, value), y = value, fill = Var2)) + 
-      #geom_point(size = 0.2) + 
       geom_boxplot(outlier.shape = NA) + 
       xlab("Genes") + 
       ylab("Normalized expression") + 
@@ -401,13 +384,14 @@ plotTopAvgExpr = function(
 #' @param features A character vector with several QC metrics
 #' to plot. 
 #' 
-#' @xport A list of ggplot objects with any specified metrics. 
+#' @return A list of ggplot objects with any specified metrics. 
+#' @export 
 #' 
 plotRNAFeatureList = function(seuratObj, features) { 
   features = features
   plotList = lapply(features, plotRNAFeature, 
                     seuratObj = seuratObj)
-  metricsPlot = ggarrange(plotlist = plotList)
+  metricsPlot = ggpubr::ggarrange(plotlist = plotList)
   return(metricsPlot)
   }
 
@@ -419,6 +403,7 @@ plotRNAFeatureList = function(seuratObj, features) {
 #' 
 #' @return A ggplot theme 
 #' @export
+#' 
 custom_theme =  function() {
   return(theme_bw() + 
            theme(

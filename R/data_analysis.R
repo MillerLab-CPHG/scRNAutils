@@ -11,6 +11,8 @@
 #' @param sample_ids if multisample_dataset = TRUE, A character that refers to the metadata column
 #' that contains sample ids.
 #' @return A vector of consensus doublet cell barcodes
+#' @export
+#' 
 scDblFinderClusters = function(
   seuratObj, 
   nrep, 
@@ -42,7 +44,7 @@ scDblFinderClusters = function(
   res = lapply(newSeurat, 
                function(x){
                  x@meta.data %>% 
-                   filter(scDblFinder.class == "doublet") %>% 
+                   dplyr::filter(scDblFinder.class == "doublet") %>% 
                    rownames()})
   rm(sampleSce)
   # Get consensus doublet calls between the desired number of runs
@@ -57,18 +59,20 @@ scDblFinderClusters = function(
 #' 
 #' @param seuratObj: A seurat obj that has been filtered for doublets
 #' @return A seurat object with a decontaminated raw counts matrix and 
-#' a metadata column showing the contamination scores output by decontX. 
+#' a metadata column showing the contamination scores output by decontX.
+#' @export 
+#' 
 decontXremove = function(seuratObj) {
   
   # Run main decontX function
-  res = celda::decontX(seuratObj@assays$RNA@counts)
+  res = celda::decontX(seuratObj[["RNA"]]$counts)
   
   # Access decontaminated counts 
   # Decont matrix contains floating point numbers so might need to round them
   decontMatrix = res$decontXcounts
   
   # Add decont Matrix and contamination scores into Seurat obj
-  seuratObj@assays$RNA@counts = decontMatrix
+  seuratObj[["RNA"]]$counts = decontMatrix
   seuratObj@meta.data$contamination_scores = res$contamination
   return(seuratObj)
 }
@@ -93,7 +97,9 @@ decontXremove = function(seuratObj) {
 #' @param studyID A character indicating name of the study. 
 #' @param arterialOrigin A character indicating arterial bed of the library.
 #' @param diseaseStatus A character indicating the disease status of the library (e.g., non-lesion, lesion).
-#' @param sex A character string indicating sex of the subject. 
+#' @param age A character vector indicating age of the subject.
+#' @param sex A character vector indicating sex of the subject. 
+#' @param race A character vector indicating race of the subject. 
 #' @param regressMito A boolean indicating whether to regress out Mitochondrial variance or not.
 #' @param setAutoThreshold A boolean indicating whether we should do adative thresholding for removing
 #' low quality cells. This approach uses the Median Absolute Deviation (MAD).  
@@ -102,48 +108,48 @@ decontXremove = function(seuratObj) {
 #' @param autoSelectPCs A boolean indicating whether to determine the number of PCs in a data-driven way. 
 #' 
 #' @return A seurat object that has been SCT normalized, nearest neighbors graph and UMAP embeddings.
+#' @export
+#' 
 seuratSCTprocess = function(
   seuratObj, 
   libraryID,
   studyID,
+  arterialOrigin,
   minUMI = 500,
   maxUMI = 20000,
   minFeatures = 200,
   maxFeatures = 4000,
   maxMtPercent = 10,
   maxHbPercent = 1,
-  arterialOrigin = NULL, 
   diseaseStatus = NULL,
+  age = NULL,
   sex = NULL,
+  race = NULL,
   regressMitoRibo = FALSE,
   seuratFilter = FALSE,
   setAutoThreshold = TRUE,
   rmMitoRiboVarGenes = FALSE,
   autoSelectPCs = TRUE
   ){
-  # Define sample and study IDs as core metadata values. 
-  if (is.null(libraryID) || is.null(studyID)) { 
-    msg = paste("Library and Study IDs are missing!")
+  # Define sample, study IDs and arterial bed as core metadata values. 
+  if (is.null(libraryID) || is.null(studyID) || is.null(arterialOrigin)) { 
+    msg = paste("Library, study ID, or arterial bed are missing!")
     stop(msg)
     }
   # Add required metadata variables 
   seuratObj$sample = libraryID
   seuratObj$study = studyID
+  seuratObj$arterialOrigin = arterialOrigin
   
-  # Vascular bed and sample disease status can be kept as optional metadata values.
-  if (!is.null(arterialOrigin)) {
-    seuratObj$arterialOrigin = arterialOrigin
-  }
-  if (!is.null(diseaseStatus)) {
-    seuratObj$diseaseStatus = diseaseStatus
-  }
-  if (!is.null(sex)) { 
-    seuratObj$sex = sex
-  }
+  # Optional metadata values
+  seuratObj$age = ifelse(!is.null(age), age, NA)
+  seuratObj$sex = ifelse(!is.null(sex), sex, NA)
+  seuratObj$race = ifelse(!is.null(race), race, NA)
+  seuratObj$diseaseStatus = ifelse(!is.null(diseaseStatus), diseaseStatus, NA)
+
   # Quality control
   # Reads mapping to Mito genes
-  seuratObj[["percent.mt"]] = PercentageFeatureSet(seuratObj, 
-                                                    pattern = "^MT-")
+  seuratObj[["percent.mt"]] = PercentageFeatureSet(seuratObj, pattern = "^MT-")
   # Reads mapping to hemoglobin genes
   hbIndex = grep(rownames(seuratObj), pattern = "^HB[AB]")
   hbGenes = rownames(seuratObj)[hbIndex]
@@ -154,11 +160,12 @@ seuratSCTprocess = function(
     pattern = "^RP[SL][[:digit:]]|^RPLP[[:digit:]]|^RPSA"
     )
   riboGenes = rownames(seuratObj)[riboIndex]
-  seuratObj[["percent.ribo"]] = PercentageFeatureSet(seuratObj,features = riboGenes)
+  seuratObj[["percent.ribo"]] = PercentageFeatureSet(seuratObj, features = riboGenes)
+  
+  # Filter cells
   if (seuratFilter) {
     if (setAutoThreshold) {
-      # Use the MAD to identify outliers based on joint QC metrics and use isOutlier()
-      # default is 3 MADs below/above median, might need to try 2 MADs
+      # MAD-based outlier identification; default is 3 MADs below/above median
       message("Setting MAD-based adaptive thresholds for cells filtering...")
       stats = cbind(
         log10(seuratObj$nCount_RNA),
@@ -166,13 +173,10 @@ seuratSCTprocess = function(
         seuratObj$percent.mt,
         seuratObj$percent.ribo
         )
-      outlying = adjOutlyingness(stats, only.outlyingness = TRUE)
-      outliersIdx = isOutlier(outlying, type = "both", nmads = 1)
+      outlying = robustbase::adjOutlyingness(stats, only.outlyingness = TRUE)
+      outliersIdx = scater::isOutlier(outlying, type = "both", nmads = 1)
       outlierBarcodes = colnames(seuratObj)[outliersIdx]
-      seuratObj = subset(
-        seuratObj, 
-        cells = outlierBarcodes, invert = TRUE
-        )
+      seuratObj = subset(seuratObj, cells = outlierBarcodes, invert = TRUE)
       seuratObj = subset(
         seuratObj,
         subset = nFeature_RNA >= minFeatures & 
@@ -183,6 +187,7 @@ seuratSCTprocess = function(
         subset = contamination_scores <= 0.2
       )
     } else {
+      message("Filtering based on user-provided thresholds...")
       seuratObj =  subset(
         seuratObj,
         subset =  nFeature_RNA <= maxFeatures & 
@@ -201,35 +206,32 @@ seuratSCTprocess = function(
   Seurat::cc.genes.updated.2019
   s.genes = cc.genes.updated.2019$s.genes
   g2m.genes = cc.genes.updated.2019$g2m.genes
-  seuratObj = CellCycleScoring(
-    seuratObj, s.features = s.genes, 
-    g2m.features = g2m.genes
-    )
-  # Normalize data, find variable genes, scale data and regress out cell cycle variance
-  # SCT enables extraction of meaningful insights from more PCs so we'll set dims=1:30
-  # By default, regress out cell cycle variance
+  
+  # Join layers from Log-Norm data to fix bug in Seurat v5
+  message("Log Normalizing data for Cellcycle scoring...")
+  seuratObj = NormalizeData(seuratObj)
+  seuratObj = JoinLayers(seuratObj)
+  seuratObj = CellCycleScoring(seuratObj, s.features = s.genes, g2m.features = g2m.genes)
   cellCycleVec = c("S.Score","G2M.Score")
+  
+  # Normalize data and regress out desired covariates; default cell cycle
   allCovariatesVec = c(cellCycleVec, "percent.mt", "percent.ribo")
   seuratObj = SCTransform(
     seuratObj,
     vst.flavor = "v2",
-    vars.to.regress = if (regressMitoRibo) {
-                            allCovariatesVec
-                          } else {
-                            cellCycleVec
-                          }
+    vars.to.regress = if (regressMitoRibo) allCovariatesVec else cellCycleVec
   )
-  # Remove mito and ribosomal genes from set of variable features
+  
+  # Remove mito and ribo genes from set of variable features
   if (rmMitoRiboVarGenes) {
     message("Removing Mito and Ribosomal genes from Variable features...")
     mitoIndex = grep(rownames(seuratObj), pattern = "^MT-")
     mitoGenes = rownames(seuratObj)[mitoIndex]
-    varGenes = setdiff(
-      VariableFeatures(seuratObj), 
-      c(mitoGenes, riboGenes, "MALAT1")
-      )
-    VariableFeatures(seuratObj) = varGenes
+    problematicGenes = c(mitoGenes, riboGenes, "MALAT1")
+    newVarGenes = setdiff(VariableFeatures(seuratObj), problematicGenes)
+    VariableFeatures(seuratObj) = newVarGenes
   } 
+  
   # Use VarGenes for dim reduction and clustering
   seuratObj = RunPCA(
     seuratObj, 
@@ -279,7 +281,10 @@ makeSumStatsDF = function(seuratObj) {
 #' 
 #' @param seuratObj A seurat obj with a computed DimReduc object
 #' @return A numeric indicating the number of PCs we need to explain the largest variation
-#'
+#' @examples
+#' \dontrun{
+#' nPCs = selectPCs(seuratObj = seuratObj)
+#' }
 selectPCs = function(seuratObj) { 
   # Extract eigen values and calc % variation
   message("Selecting the n PCs that capture 90% of variation...")
@@ -307,7 +312,7 @@ selectPCs = function(seuratObj) {
 #' \dontrun{
 #' sil_scores = calc_sil_scores(seurat_obj, seq(0.3, 0.9, by=0.1))
 #' }
-calcSilscores = function(
+calcSilScores = function(
   seuratObj, 
   clusteringRes,
   clusteringAlg = "louvain"
@@ -345,7 +350,8 @@ calcSilscores = function(
         }
       }, error = function(e) {
         cat("Error: ", conditionMessage(e), "\n")
-      })
+      }
+      )
     }
   resolutionsSilDf = data.table::rbindlist(
     silScoresList,
@@ -354,17 +360,17 @@ calcSilscores = function(
 }
 
 
-#' Internal helper function to get the max sil score from calc_sil_scores()
+#' Internal helper function to get the max sil score from \code{calcSilScores}
 #' 
 #' @param silScoresDf A data.frame output by calc_sil_scores()
 #' @return A numeric indicating the maximum average sil sclore value across tested resolutions
 maxAvgSil = function(silScoresDf) 
   {
   avgSilScores = silScoresDf %>%
-    group_by(.id) %>%
-    summarize(meanSil = mean(silWidth))
+    dplyr::group_by(.id) %>%
+    dplyr::summarize(meanSil = mean(silWidth))
   maxSilRes = as.character(avgSilScores[which.max(avgSilScores$meanSil), 1])
-  maxSilRes = as.numeric(str_split(maxSilRes, "_")[[1]][2])
+  maxSilRes = as.numeric(strsplit(maxSilRes, "_")[[1]][2])
   return(maxSilRes)
 }
 
@@ -382,6 +388,10 @@ maxAvgSil = function(silScoresDf)
 #' 
 #' @return A data.frame with the correlation of the target gene with all other genes in the count matrix. 
 #' @export
+#' @examples
+#' \dontrun{
+#' calcGeneCors(seuratObj, targetGene = "MYH11")
+#' }
 #' 
 calcGeneCors = function(
   seuratObj,
@@ -416,11 +426,7 @@ calcGeneCors = function(
   corsList = apply(
     reshapedMatrix, 2, 
     function(x){
-      cor.test(
-        targetGeneVec, 
-        x,
-        method = corMethod
-        )
+      cor.test(targetGeneVec, x, method = corMethod)
       }
     )
   corsListTidy = lapply(corsList, broom::tidy)
@@ -429,7 +435,7 @@ calcGeneCors = function(
   corsDfGenes = corsDf %>%
     mutate(gene=geneNames,
            FDR = p.adjust(p.value, "BH")) %>%
-    arrange(desc(estimate)) %>%
+    dplyr::arrange(desc(estimate)) %>%
     drop_na() %>%
     mutate(geneIndex = seq_along(gene)) %>%
     filter(!gene == targetGene) %>%
