@@ -1,0 +1,23 @@
+# PACKAGE DOCUMENTATION
+#' Comprehensive pipeline and other utility and visualization functions
+#' 
+#' If you have a matrix (either produced by Cellranger or a txt file), this
+#' package can help you run a processing pipeline, which includes removal of
+#' doblets, ambient RNA, adaptive low-quality cell filtering using the MAD.
+#' Other add ons include estimation of the proper clustering resolution based 
+#' on the silhouette coefficients. The pipeline within this package will also
+#' output plots and stats not tipically included in the Seurat workflow such
+#' as complexity and N most highly expressed gene boxplots. We also facilitate 
+#' the conversion of the output Seurat object into .h5ad format so that your
+#' data will be compatible with python workflows. 
+#' 
+#' 
+#' @docType package
+#' @name scRNAutils
+#' @author Jose Verdezoto Mosquera
+#' 
+#' @references \url{http://github.com/MillerLab-CPHG/scRNAutils}
+#' @import ggplot2
+#' 
+
+NULL

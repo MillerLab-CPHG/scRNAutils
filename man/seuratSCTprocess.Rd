@@ -8,21 +8,23 @@ seuratSCTprocess(
   seuratObj,
   libraryID,
   studyID,
-  arterialOrigin,
-  minUMI = 500,
-  maxUMI = 20000,
+  tissueSource,
+  nMADs = 3,
+  minReads = 500,
+  maxReads = 20000,
   minFeatures = 200,
   maxFeatures = 4000,
-  maxMtPercent = 10,
+  maxMtPercent = 20,
   maxHbPercent = 1,
   diseaseStatus = NULL,
   age = NULL,
   sex = NULL,
   race = NULL,
+  seqPlatform = "10x",
   regressMitoRibo = FALSE,
+  rmMitoRiboVarGenes = FALSE,
   seuratFilter = FALSE,
   setAutoThreshold = TRUE,
-  rmMitoRiboVarGenes = FALSE,
   autoSelectPCs = TRUE
 )
 }
@@ -33,11 +35,14 @@ seuratSCTprocess(
 
 \item{studyID}{A character indicating name of the study.}
 
-\item{arterialOrigin}{A character indicating arterial bed of the library.}
+\item{tissueSource}{A character indicating arterial bed of the library.}
 
-\item{minUMI}{A numeric indicating min number of UMIs to keep.}
+\item{nMADs}{A character indicating the number of Median Absolute Deviations (MADs)
+to be used during joint metric filtering (nUMIs, nGenes, %Mito, %Ribo)}
 
-\item{maxUMI}{A numeric indicating max number of UMIs to keep.}
+\item{minReads}{A numeric indicating min number of UMIs to keep.}
+
+\item{maxReads}{A numeric indicating max number of UMIs to keep.}
 
 \item{minFeatures}{A numeric indicating the minimum number of genes cells should express to be included.}
 
@@ -55,18 +60,20 @@ seuratSCTprocess(
 
 \item{race}{A character vector indicating race of the subject.}
 
+\item{seqPlatform}{A character indicating the sequencing platform}
+
+\item{regressMitoRibo}{A boolean indicating whether to regress out Mitochondrial variance or not.}
+
+\item{rmMitoRiboVarGenes}{A boolean indicating whether we should remove Mito and Ribo genes from 
+the set of highly variable features.}
+
 \item{seuratFilter}{A boolean indicating whether we wish to filter low quality cells. 
 Set to FALSE in pre-processing round for doublet removal.}
 
 \item{setAutoThreshold}{A boolean indicating whether we should do adative thresholding for removing
 low quality cells. This approach uses the Median Absolute Deviation (MAD).}
 
-\item{rmMitoRiboVarGenes}{A boolean indicating whether we should remove Mito and Ribo genes from 
-the set of highly variable features.}
-
 \item{autoSelectPCs}{A boolean indicating whether to determine the number of PCs in a data-driven way.}
-
-\item{regressMito}{A boolean indicating whether to regress out Mitochondrial variance or not.}
 }
 \value{
 A seurat object that has been SCT normalized, nearest neighbors graph and UMAP embeddings.

@@ -8,9 +8,11 @@ doItAll(
   countsMatrix,
   libraryID,
   studyID,
-  arterialOrigin,
+  tissueSource,
+  nMADs = 3,
   minRes = 0.2,
   maxRes = 1.9,
+  UMI = TRUE,
   dblFindIter = 3,
   seuratFilter = TRUE,
   setAutoThreshold = TRUE,
@@ -19,16 +21,17 @@ doItAll(
   autoSelectPCs = TRUE,
   clusteringAlg = "louvain",
   queryFeatures = NULL,
-  minUMI = 500,
-  maxUMI = 20000,
+  minReads = 500,
+  maxReads = 20000,
   minFeatures = 200,
   maxFeatures = 4000,
-  maxMtPercent = 10,
+  maxMtPercent = 20,
   maxHbPercent = 1,
   diseaseStatus = NULL,
   age = NULL,
   sex = NULL,
   race = NULL,
+  seqPlatform = "10x",
   makeAnnData = FALSE,
   annDataParentDir = NULL
 )
@@ -39,25 +42,33 @@ a filtered_feature_bc_matrix with a Seurat::Read10X or a txt file. Maybe this is
 handled out of the function since we'd also be dealing with h5 files. Maybe we can do this later
 but not priority right now}
 
-\item{libraryID}{A character indicating the id for the library.}
+\item{libraryID}{A character indicating name of the sample.}
 
-\item{studyID}{A character string indicating the study that generated the data.}
+\item{studyID}{A character indicating name of the study.}
 
-\item{arterialOrigin}{A character vector indicating vascualr bed of the data.}
+\item{tissueSource}{A character indicating arterial bed of the library.}
+
+\item{nMADs}{A character indicating the number of Median Absolute Deviations (MADs)
+to be used during joint metric filtering (nUMIs, nGenes, %Mito, %Ribo)}
 
 \item{minRes}{A numeric indicating lower boundary for sil analysis}
 
 \item{maxRes}{A numeric indicating upper boundary for sil analysis}
 
+\item{UMI}{A boolean indicating whether the read type is a UMI.}
+
 \item{dblFindIter}{A numeric indicating how many iterations we need to run for getting consensus doublets}
 
-\item{seuratFilter}{A boolean indicating whether we wish to remove low quality cells}
+\item{seuratFilter}{A boolean indicating whether we wish to filter low quality cells. 
+Set to FALSE in pre-processing round for doublet removal.}
 
-\item{setAutoThreshold}{A boolean indicating whether we should perform adaptive QC thresholding using the MAD.}
+\item{setAutoThreshold}{A boolean indicating whether we should do adative thresholding for removing
+low quality cells. This approach uses the Median Absolute Deviation (MAD).}
 
-\item{regressMitoRibo}{A boolean indicating whether mitochondorial and ribosomal variance should be regressed out.}
+\item{regressMitoRibo}{A boolean indicating whether to regress out Mitochondrial variance or not.}
 
-\item{rmMitoRiboVarGenes}{A boolean indicating whether to remove mitochondorial and ribosomal genes from set of variable features.}
+\item{rmMitoRiboVarGenes}{A boolean indicating whether we should remove Mito and Ribo genes from 
+the set of highly variable features.}
 
 \item{autoSelectPCs}{A boolean indicating whether to determine the number of PCs in a data-driven way.}
 
@@ -65,9 +76,9 @@ but not priority right now}
 
 \item{queryFeatures}{A character vector with genes of interest for checking expression before and after QC.}
 
-\item{minUMI}{A numeric indicating min number of UMIs to keep.}
+\item{minReads}{A numeric indicating min number of UMIs to keep.}
 
-\item{maxUMI}{A numeric indicating max number of UMIs to keep.}
+\item{maxReads}{A numeric indicating max number of UMIs to keep.}
 
 \item{minFeatures}{A numeric indicating the minimum number of genes cells should express to be included.}
 
@@ -77,13 +88,15 @@ but not priority right now}
 
 \item{maxHbPercent}{A numeric indicating the max percentage of reads mapped to hemoglobin genes.}
 
-\item{diseaseStatus}{A character vector indicating disease status of the library (e.g., lesion vs non-lesion)}
+\item{diseaseStatus}{A character indicating the disease status of the library (e.g., non-lesion, lesion).}
 
 \item{age}{A character vector indicating age of the subject.}
 
 \item{sex}{A character vector indicating sex of the subject.}
 
 \item{race}{A character vector indicating race of the subject.}
+
+\item{seqPlatform}{A character indicating the sequencing platform}
 
 \item{makeAnnData}{A boolean indicating whether we want to generate an .h5ad file for the processed Seurat object.}
 

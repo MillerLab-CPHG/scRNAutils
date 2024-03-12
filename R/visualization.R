@@ -9,7 +9,7 @@
 #' @param targetAssay A character indicating the assay to be used for making gene expression plots. 
 #' Most of the time this argument will be either RNA or SCT. Default is set to SCT. 
 #' @param queryGenes A character vector with the names of the genes to be included in the list.
-#' @param splitByVar A character indicating a metadat variable by which to facet the plot (e.g., sex, disease status).
+#' @param splitByVar A character indicating a metadata variable by which to facet the plot (e.g., sex, disease status).
 #' @param ptSize A numeric indicating the size of the points for each plot. Default value is 0.1 but can be changed. 
 #' 
 #' @return A List of named ggplot objects, one for each of the genes included in the character vector.
@@ -24,15 +24,15 @@ plotFeatureUMAPList = function(
   ){
   # Check original default assay
   originalDefAssay = Seurat::DefaultAssay(seuratObj)
-  
-  # Set seurat assay to whatever user defines as target assay.
-  # If target different than original default assay, do a temporary change. 
+  # Set seurat assay to target assay, switch temporarily if required
   if (originalDefAssay == "RNA" && targetAssay == "SCT") {
+    message("Switching to SCT assay...")
     DefaultAssay(seuratObj) = "SCT"
   } else if (originalDefAssay == "SCT" && targetAssay == "RNA") {
+    message("Switching to RNA assay...")
     DefaultAssay(seuratObj) = "RNA"
-  } else {
-    DefaultAssay(seuratObj) = originalDefAssay
+  } else if (originalDefAssay == targetAssay){
+    message(paste0("using ", targetAssay, " assay..."))
   }
   genePlots = lapply(
       queryFeatures,
@@ -89,10 +89,9 @@ plot2GeneCor = function(
     targetColData = targetColData,
     targetAnno = targetAnno,
     assay = assay)
-  p = df %>% 
-    ggplot(aes_string(
-      x = targetGenes[1], 
-      y = targetGenes[2])) + 
+  p = ggplot(df, aes_string(
+    x = targetGenes[1], 
+    y = targetGenes[2])) + 
     geom_jitter() + 
     custom_theme()  
   # Show correlation coefficient if the user wants to do so
@@ -110,7 +109,7 @@ plot2GeneCor = function(
 #' This function will take the output of calc_gene_cors() and produce a
 #' nice way to visualize the correlations. 
 #' 
-#' @param corsDf A data.frame that is output by calc_gene_cors()
+#' @param corsDf A data.frame that is output by \code{calcGeneCors}
 #' @param targetGene A character string indicating the target gene
 #' @param targetCells A character indicating the cells where the cors were calculated 
 #' @param genesToLabel A character vector with the names of the genes that should be highlighted in the plot.
@@ -130,8 +129,7 @@ plotGene2TranscriptomeCor = function(
     x = geneIndex, 
     y = corEstimate, 
     color = corEstimate, 
-    label = ifelse(gene %in% genesToLabel, gene, "")
-    )
+    label = ifelse(gene %in% genesToLabel, gene, ""))
     ) + 
     geom_point(size=pointSize) +
     geom_text_repel(
@@ -234,13 +232,18 @@ plotExpressionOnPseudotime = function(
 #' and percent.mt variables.
 #' @param cor A boolean indicating whether we want to apply a lm to 
 #' UMIs and genes. 
+#' @param UMI A boolean indicating whether the read is a UMI or a raw Read.
 #' @return A ggplot object showing the correlation between 
-#' number of UMIs and detected genes. 
+#' number of UMIs/Reads and detected genes. 
 #'
 #' @export
 #'
-plotRNAcomplexity = function(seuratObj, cor = FALSE){
-  df = seuratObj@meta.data
+plotRNAcomplexity = function(
+    seuratObj, 
+    cor = FALSE, 
+    UMI = TRUE
+  ){
+  df = seuratObj[[]]
   p = ggplot(df, 
              aes_string(x = "nCount_RNA", y = "nFeature_RNA", 
                  color = "percent.mt"))
@@ -249,7 +252,7 @@ plotRNAcomplexity = function(seuratObj, cor = FALSE){
     geom_point(size = 1) +
     scale_x_log10() + 
     scale_y_log10() + 
-    xlab("nUMIs") +
+    xlab(if(UMI) "nUMIs" else "nReads") +
     ylab("nGenes") + 
     ggtitle("Sample complexity") + 
     custom_theme() +
@@ -276,9 +279,9 @@ plotRNAcomplexity = function(seuratObj, cor = FALSE){
 #' @export
 #' 
 plotRNAcomplexityHist = function(seuratObj) {
-  df = seuratObj@meta.data
+  df = seuratObj[[]]
   p = ggplot(df,
-             aes_string(x = "log10GenesPerUMI")) +
+             aes_string(x = "log10GenesPerReads")) +
     geom_histogram(bins = 100) + 
     geom_vline(
       xintercept = 0.8, 
@@ -310,7 +313,7 @@ plotRNAcomplexityHist = function(seuratObj) {
 #' 
 plotRNAFeature = function(seuratObj, feature) { 
   df = seuratObj@meta.data
-  ggplot(df, aes_string(x="sample", y=feature)) + 
+  ggplot(df, aes_string(x="orig.ident", y=feature)) + 
     geom_violin(width = 0.3, fill = "azure3") + 
     #geom_boxplot(width=0.2, outlier.shape = NA) + 
     geom_jitter(width = 0.04, alpha=0.2, size=0.4) + 
@@ -338,32 +341,33 @@ plotTopAvgExpr = function(
   makeBoxplot = FALSE,
   nGenes = 50
   ){
- avgExpr = AverageExpression(
-   seuratObj, 
-   features = rownames(seuratObj),
-   assays = c("SCT"), 
-   group.by = "sample"
+ avgExpr = suppressWarnings(
+   AverageExpression(
+     seuratObj, 
+     features = rownames(seuratObj),
+     assays = c("SCT"), 
+     group.by = "sample"
    )
+ )
   avgExprdf = as.data.frame(avgExpr$SCT)
-  topGenes = avgExprdf %>%
-    tibble::rownames_to_column(var = "gene") %>%
-    dplyr::arrange(desc(all)) %>% 
-    head(n = nGenes) 
+  topGenes = tibble::rownames_to_column(avgExprdf, var = "gene")
+  topGenes = topGenes[order(topGenes$all, decreasing = TRUE), ]
+  topGenes = head(topGenes, n = nGenes)
   # Make plot
-  p = topGenes %>% 
-    ggplot(aes(x = reorder(gene, all), 
-               y = all)) + 
+  p = ggplot(topGenes, aes(x = reorder(gene, all), 
+                           y = all)) + 
     geom_col() +
     xlab("Genes") + 
     ylab("Normalized expression") + 
     custom_theme() + 
     coord_flip()
   if (makeBoxplot) {
-    topCounts = seuratObj@assays$SCT@data[topGenes$gene, ]
+    topCounts = seuratObj[["SCT"]]$data[topGenes$gene, ]
     countsDf = t(as.data.frame(topCounts))
     reshapedCountsDf = reshape2::melt(countsDf)
-    p = reshapedCountsDf %>%
-      ggplot(aes(x = reorder(Var2, value), y = value, fill = Var2)) + 
+    p = ggplot(reshapedCountsDf,
+               aes(x = reorder(Var2, value), 
+                   y = value, fill = Var2)) + 
       geom_boxplot(outlier.shape = NA) + 
       xlab("Genes") + 
       ylab("Normalized expression") + 

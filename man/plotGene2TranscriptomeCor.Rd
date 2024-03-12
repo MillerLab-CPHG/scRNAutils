@@ -13,7 +13,7 @@ plotGene2TranscriptomeCor(
 )
 }
 \arguments{
-\item{corsDf}{A data.frame that is output by calc_gene_cors()}
+\item{corsDf}{A data.frame that is output by \code{calcGeneCors}}
 
 \item{targetGene}{A character string indicating the target gene}
 

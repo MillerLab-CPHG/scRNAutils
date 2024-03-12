@@ -8,7 +8,7 @@
 #' @param seuratObj: A Pre-processed seurat object with cell clusters annotations.
 #' @param nrep A Numeric indicating the number of times to run the scDblFinder function.
 #' @param multisampleDataset A Logical indicating whether the processed dataset has multiple samples
-#' @param sample_ids if multisample_dataset = TRUE, A character that refers to the metadata column
+#' @param sampleIDs if multisample_dataset = TRUE, A character that refers to the metadata column
 #' that contains sample ids.
 #' @return A vector of consensus doublet cell barcodes
 #' @export
@@ -43,9 +43,11 @@ scDblFinderClusters = function(
   # Get barcodes that were tagged as doublets
   res = lapply(newSeurat, 
                function(x){
-                 x@meta.data %>% 
-                   dplyr::filter(scDblFinder.class == "doublet") %>% 
-                   rownames()})
+                 filteredDf = dplyr::filter(x[[]], scDblFinder.class == "doublet")
+                 doubletBarcodes = rownames(filteredDf)
+                 return(doubletBarcodes)
+                 }
+               )
   rm(sampleSce)
   # Get consensus doublet calls between the desired number of runs
   consensusDbl = Reduce(intersect, res[1:length(res)])
@@ -85,26 +87,29 @@ decontXremove = function(seuratObj) {
 #' some important metadata variables.  
 #' 
 #' @param seuratObj An input Seurat object.
-#' @param seuratFilter A boolean indicating whether we wish to filter low quality cells. 
-#' Set to FALSE in pre-processing round for doublet removal.
-#' @param minUMI A numeric indicating min number of UMIs to keep.
-#' @param maxUMI A numeric indicating max number of UMIs to keep.
+#' @param libraryID A character indicating name of the sample.
+#' @param studyID A character indicating name of the study. 
+#' @param tissueSource A character indicating arterial bed of the library.
+#' @param nMADs A character indicating the number of Median Absolute Deviations (MADs)
+#'  to be used during joint metric filtering (nUMIs, nGenes, %Mito, %Ribo)
+#' @param minReads A numeric indicating min number of UMIs to keep.
+#' @param maxReads A numeric indicating max number of UMIs to keep.
 #' @param minFeatures A numeric indicating the minimum number of genes cells should express to be included.
 #' @param maxFeatures A numeric indicating the maximum number of genes cells should express to be included.
 #' @param maxMtPercent A numeric indicating the max percentage of reads mapped to the mito genome. 
-#' @param maxHbPercent A numeric indicating the max percentage of reads mapped to hemoglobin genes. 
-#' @param libraryID A character indicating name of the sample.
-#' @param studyID A character indicating name of the study. 
-#' @param arterialOrigin A character indicating arterial bed of the library.
-#' @param diseaseStatus A character indicating the disease status of the library (e.g., non-lesion, lesion).
+#' @param maxHbPercent A numeric indicating the max percentage of reads mapped to hemoglobin genes.
+#' @param diseaseStatus A character indicating the disease status of the library (e.g., non-lesion, lesion). 
 #' @param age A character vector indicating age of the subject.
 #' @param sex A character vector indicating sex of the subject. 
-#' @param race A character vector indicating race of the subject. 
-#' @param regressMito A boolean indicating whether to regress out Mitochondrial variance or not.
-#' @param setAutoThreshold A boolean indicating whether we should do adative thresholding for removing
-#' low quality cells. This approach uses the Median Absolute Deviation (MAD).  
+#' @param race A character vector indicating race of the subject.
+#' @param seqPlatform A character indicating the sequencing platform
+#' @param regressMitoRibo A boolean indicating whether to regress out Mitochondrial variance or not.
 #' @param rmMitoRiboVarGenes A boolean indicating whether we should remove Mito and Ribo genes from 
-#' the set of highly variable features.  
+#'  the set of highly variable features.  
+#' @param seuratFilter A boolean indicating whether we wish to filter low quality cells. 
+#'  Set to FALSE in pre-processing round for doublet removal.
+#' @param setAutoThreshold A boolean indicating whether we should do adative thresholding for removing
+#'  low quality cells. This approach uses the Median Absolute Deviation (MAD).  
 #' @param autoSelectPCs A boolean indicating whether to determine the number of PCs in a data-driven way. 
 #' 
 #' @return A seurat object that has been SCT normalized, nearest neighbors graph and UMAP embeddings.
@@ -114,32 +119,54 @@ seuratSCTprocess = function(
   seuratObj, 
   libraryID,
   studyID,
-  arterialOrigin,
-  minUMI = 500,
-  maxUMI = 20000,
+  tissueSource,
+  nMADs = 3, 
+  minReads = 500,
+  maxReads = 20000,
   minFeatures = 200,
   maxFeatures = 4000,
-  maxMtPercent = 10,
+  maxMtPercent = 20,
   maxHbPercent = 1,
   diseaseStatus = NULL,
   age = NULL,
   sex = NULL,
   race = NULL,
+  seqPlatform = "10x",
   regressMitoRibo = FALSE,
+  rmMitoRiboVarGenes = FALSE,
   seuratFilter = FALSE,
   setAutoThreshold = TRUE,
-  rmMitoRiboVarGenes = FALSE,
   autoSelectPCs = TRUE
   ){
-  # Define sample, study IDs and arterial bed as core metadata values. 
-  if (is.null(libraryID) || is.null(studyID) || is.null(arterialOrigin)) { 
-    msg = paste("Library, study ID, or arterial bed are missing!")
-    stop(msg)
-    }
+  # Define sample, study IDs and tissue source as core metadata values. 
+  if (is.null(libraryID)) { 
+    stop("Library ID is missing!")
+  }
+  
+  if (is.null(studyID)) { 
+    stop("Study ID is missing!")
+  }
+  
+  if (is.null(tissueSource)) { 
+    stop("Tissue source is missing!")
+  }
+  
+  if(is.null(seqPlatform)) {
+    stop("Sequencing platform is missing!")
+  }
+  
+  # Make sure to add valid platform
+  platforms = c("10x", "Smart-seq2", "Cel-seq2")
+  tryCatch(
+    {
+      seqPlatform = match.arg(arg = seqPlatform, choices = platforms) 
+    }, error = function(e) message(e)
+  )
   # Add required metadata variables 
   seuratObj$sample = libraryID
   seuratObj$study = studyID
-  seuratObj$arterialOrigin = arterialOrigin
+  seuratObj$tissueSource = tissueSource
+  seuratObj$seqPlatform = seqPlatform
   
   # Optional metadata values
   seuratObj$age = ifelse(!is.null(age), age, NA)
@@ -165,7 +192,7 @@ seuratSCTprocess = function(
   # Filter cells
   if (seuratFilter) {
     if (setAutoThreshold) {
-      # MAD-based outlier identification; default is 3 MADs below/above median
+      # MAD-based outlier identification; using 1 MAD below/above median
       message("Setting MAD-based adaptive thresholds for cells filtering...")
       stats = cbind(
         log10(seuratObj$nCount_RNA),
@@ -173,32 +200,61 @@ seuratSCTprocess = function(
         seuratObj$percent.mt,
         seuratObj$percent.ribo
         )
-      outlying = robustbase::adjOutlyingness(stats, only.outlyingness = TRUE)
-      outliersIdx = scater::isOutlier(outlying, type = "both", nmads = 1)
+      outlying = tryCatch({
+        robustbase::adjOutlyingness(x = stats, only.outlyingness = TRUE)
+      }, error = function(e) {
+        cat(conditionMessage(e), "\n")
+        message("Making QC stats matrix full rank...")
+        fullRankStats = robustbase::fullRank(stats)
+        outliers = robustbase::adjOutlyingness(
+          x = fullRankStats, 
+          only.outlyingness = TRUE
+          )
+        return(outliers)
+      })
+      message(paste0("Using ", nMADs, " MADs for joint metric filtering..."))
+      outliersIdx = scater::isOutlier(
+        metric = outlying, 
+        type = "higher", 
+        nmads = nMADs
+        )
+      
+      # Remove outliers
       outlierBarcodes = colnames(seuratObj)[outliersIdx]
       seuratObj = subset(seuratObj, cells = outlierBarcodes, invert = TRUE)
+      
+      # Remove remaining cells with abnormal high % of MT and HB reads 
       seuratObj = subset(
         seuratObj,
         subset = nFeature_RNA >= minFeatures & 
-          nCount_RNA >= minUMI & 
-          percent.hb <= maxHbPercent)
-      seuratObj = subset(
-        seuratObj,
-        subset = contamination_scores <= 0.2
+          nCount_RNA >= minReads & 
+          percent.mt <= maxMtPercent &
+          percent.hb <= maxHbPercent
+        )
+      
+      # Remove cells with contamination scores 5-10 MADS above median
+      contScores = seuratObj[[]]$contamination_scores 
+      contOutliersIdx = scater::isOutlier(
+        metric = contScores, 
+        nmads = 7,
+        type = "higher"
       )
+      attr(contOutliersIdx, "thresholds")
+      contBarcodes = colnames(seuratObj)[contOutliersIdx]
+      seuratObj = subset(seuratObj, cells = contBarcodes, invert = TRUE)
     } else {
       message("Filtering based on user-provided thresholds...")
       seuratObj =  subset(
         seuratObj,
         subset =  nFeature_RNA <= maxFeatures & 
-          nCount_RNA <= maxUMI & 
+          nCount_RNA <= maxReads & 
           percent.mt <= maxMtPercent & 
           percent.hb <= maxHbPercent
         )
       seuratObj = subset(
         seuratObj,
         subset = nFeature_RNA >= minFeatures 
-        & nCount_RNA >= minUMI
+        & nCount_RNA >= minReads
         )
     }
   }
@@ -224,7 +280,7 @@ seuratSCTprocess = function(
   
   # Remove mito and ribo genes from set of variable features
   if (rmMitoRiboVarGenes) {
-    message("Removing Mito and Ribosomal genes from Variable features...")
+    message("Removing MALAT1, Mito and Ribosomal genes from Variable features...")
     mitoIndex = grep(rownames(seuratObj), pattern = "^MT-")
     mitoGenes = rownames(seuratObj)[mitoIndex]
     problematicGenes = c(mitoGenes, riboGenes, "MALAT1")
@@ -244,11 +300,12 @@ seuratSCTprocess = function(
     reduction = "pca", 
     dims = if(autoSelectPCs) 1:nPCs else 1:30, 
     k.param = 20
-    ) %>%
-    RunUMAP(
-      dims = if (autoSelectPCs) 1:nPCs else 1:30, 
-      n.neighbors = 30
-      )
+    ) 
+  seuratObj = RunUMAP(
+    seuratObj,
+    dims = if (autoSelectPCs) 1:nPCs else 1:30,
+    n.neighbors = 30
+    )
   return(seuratObj)
 }
 
@@ -366,9 +423,11 @@ calcSilScores = function(
 #' @return A numeric indicating the maximum average sil sclore value across tested resolutions
 maxAvgSil = function(silScoresDf) 
   {
-  avgSilScores = silScoresDf %>%
-    dplyr::group_by(.id) %>%
-    dplyr::summarize(meanSil = mean(silWidth))
+  #avgSilScores = silScoresDf %>%
+  #  dplyr::group_by(.id) %>%
+  #  dplyr::summarize(meanSil = mean(silWidth))
+  groupedScores = dplyr::group_by(silScoresDf, .id)
+  avgSilScores = dplyr::summarize(groupedScores, meanSil = mean(silWidth))
   maxSilRes = as.character(avgSilScores[which.max(avgSilScores$meanSil), 1])
   maxSilRes = as.numeric(strsplit(maxSilRes, "_")[[1]][2])
   return(maxSilRes)
@@ -404,22 +463,22 @@ calcGeneCors = function(
   # Set default assay
   DefaultAssay(seuratObj) = assay
   # Create a vector with the names of the cells of interest
-  metadataDf = seuratObj@meta.data
+  metadataDf = seuratObj[[]]
   if (!is.null(annoVariable)) {
     if (is.null(cellTypes)) {
       stop("Please provide a list of cell type annotations in ", 
            annoVariable)
     }
-    cellsVector = metadataDf %>%
-      dplyr::filter(annoVariable %in% cellTypes)
+    filteredDf = metadataDf[which(metadataDf[[annoVariable]] %in% cellTypes), ]
+    cellsVector = rownames(filteredDf)
   } else {
     cellsVector = colnames(seuratObj)
   }
   # Process matrix to run correlations
   if (!is.null(annoVariable) && !is.null(cellTypes)) {
-    geneExpression = seuratObj@assays$SCT@data[, cellsVector]
+    geneExpression = seuratObj[["SCT"]]$data[, cellsVector]
   } else {
-    geneExpression = seuratObj@assays$SCT@data
+    geneExpression = seuratObj[["SCT"]]$data
   }
   reshapedMatrix = t(as.matrix(geneExpression))
   targetGeneVec = as.numeric(reshapedMatrix[, targetGene])
@@ -429,18 +488,19 @@ calcGeneCors = function(
       cor.test(targetGeneVec, x, method = corMethod)
       }
     )
+  # Tidy results into a dataframe
   corsListTidy = lapply(corsList, broom::tidy)
   corsDf =  data.table::rbindlist(corsListTidy)
   geneNames = names(corsList)
-  corsDfGenes = corsDf %>%
-    mutate(gene=geneNames,
-           FDR = p.adjust(p.value, "BH")) %>%
-    dplyr::arrange(desc(estimate)) %>%
-    drop_na() %>%
-    mutate(geneIndex = seq_along(gene)) %>%
-    filter(!gene == targetGene) %>%
-    dplyr::rename(corEstimate = estimate)
-  return(corsDfGenes)
+  corsDf$gene = geneNames
+  corsDf$FDR = p.adjust(corsDf$p.value, "BH")
+  corsDf = corsDf[order(corsDf$estimate, decreasing = TRUE), ]
+  corsDf = na.omit(corsDf)
+  corsDf$geneIndex = seq_along(corsDf$gene)
+  corsDf = corsDf[-which(corsDf$gene == targetGene), ]
+  corsDf = dplyr::rename(corsDf, corEstimate = estimate)
+
+  return(corsDf)
 }
 
 

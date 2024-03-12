@@ -16,10 +16,10 @@ scDblFinderClusters(
 
 \item{multisampleDataset}{A Logical indicating whether the processed dataset has multiple samples}
 
-\item{seuratObj:}{A Pre-processed seurat object with cell clusters annotations.}
-
-\item{sample_ids}{if multisample_dataset = TRUE, A character that refers to the metadata column
+\item{sampleIDs}{if multisample_dataset = TRUE, A character that refers to the metadata column
 that contains sample ids.}
+
+\item{seuratObj:}{A Pre-processed seurat object with cell clusters annotations.}
 }
 \value{
 A vector of consensus doublet cell barcodes

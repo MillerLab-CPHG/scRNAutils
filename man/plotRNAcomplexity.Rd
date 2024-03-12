@@ -4,7 +4,7 @@
 \alias{plotRNAcomplexity}
 \title{Internal helper function to plot scRNA library complexity}
 \usage{
-plotRNAcomplexity(seuratObj, cor = FALSE)
+plotRNAcomplexity(seuratObj, cor = FALSE, UMI = TRUE)
 }
 \arguments{
 \item{seuratObj}{A Seurat object with QC metrics stored in the metadata}
@@ -12,12 +12,14 @@ plotRNAcomplexity(seuratObj, cor = FALSE)
 \item{cor}{A boolean indicating whether we want to apply a lm to 
 UMIs and genes.}
 
+\item{UMI}{A boolean indicating whether the read is a UMI or a raw Read.}
+
 \item{df}{A dataframe with metadata variables nCount_RNA, nFeature_RNA
 and percent.mt variables.}
 }
 \value{
 A ggplot object showing the correlation between 
-number of UMIs and detected genes.
+number of UMIs/Reads and detected genes.
 }
 \description{
 this helper function will correlate number of UMIs to

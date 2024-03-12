@@ -1,2 +1,2 @@
 # scRNAutils
-This repo contains code for automating processing of scRNA libraries and other useful functions
+`scRNAutils` is a package that provides comprehensive pipeline for processing single-cell RNA-seq data. Many of the functions are designed to complement gold-standard normalization and dimensionality reduction functionality within Seurat. Besides adaptive and robust QC, the package optimizes clustering resolution parameters as well as selection of the N PCs explaining a given amount of variance in the data. For more detailed documentation, please see the tutorial inside the vignettes folder.

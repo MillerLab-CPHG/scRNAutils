@@ -1,0 +1,10 @@
+citHeader("To cite the scRNAutils package please use:")
+
+citEntry(entry = "article",
+         title = "Integrative single-cell meta-analysis reveals disease-relevant vascular cell states and markers in human atherosclerosis",
+         author = personList(as.person("Jose Verdezoto Mosquera")),
+         year = 2023,
+         journal = "Cell Reports",
+         doi = "10.1016/j.celrep.2023.113380",
+         url = "https://www.cell.com/cell-reports/fulltext/S2211-1247(23)01392-X?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS221112472301392X%3Fshowall%3Dtrue",
+         textVersion = "Mosquera JV et al. (2023) Integrative single-cell meta-analysis reveals disease-relevant vascular cell states and markers in human atherosclerosis. Cell Reports. doi:10.1016/j.celrep.2023.113380")

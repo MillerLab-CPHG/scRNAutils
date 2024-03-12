@@ -28,11 +28,11 @@ tidySeuratCounts = function(
     msg = ("The provided assay should be either SCT or RNA!")
     stop(msg)
   }
-  normMatrixDf = as.data.table(t(as.matrix(normCounts)))
+  normMatrixDf = as.data.frame(t(as.matrix(normCounts)))
   if (!is.null(targetAnno) && !is.null(targetColData)) {
-    metaDf = seuratObj@meta.data
+    metaDf = seuratObj[[]]
     # Subset df and name barcodes with cell type annotations
-    metaDfsubset = metaDf[meta_df[[targetColdata]] %in% targetAnno, ]
+    metaDfsubset = metaDf[metaDf[[targetColData]] %in% targetAnno, ]
     targetBarcodes = rownames(metaDfsubset)
     names(targetBarcodes) = metaDfsubset[[targetColData]]
     

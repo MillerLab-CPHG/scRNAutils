@@ -18,7 +18,7 @@ plotFeatureUMAPList(
 \item{targetAssay}{A character indicating the assay to be used for making gene expression plots. 
 Most of the time this argument will be either RNA or SCT. Default is set to SCT.}
 
-\item{splitByVar}{A character indicating a metadat variable by which to facet the plot (e.g., sex, disease status).}
+\item{splitByVar}{A character indicating a metadata variable by which to facet the plot (e.g., sex, disease status).}
 
 \item{ptSize}{A numeric indicating the size of the points for each plot. Default value is 0.1 but can be changed.}
 
