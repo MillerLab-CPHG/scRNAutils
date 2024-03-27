@@ -91,7 +91,7 @@ doItAll = function(
     seuratObj = seuratObj, 
     features = qcMetrics
     )
-  summaryDF = makeSumStatsDF(seuratObj = seuratObj)
+  summaryDF = makeSumStatsDF(seuratObj = seuratObj, seqPlatform = seqPlatform)
   complexityPlot = plotRNAcomplexity(seuratObj = seuratObj, cor = TRUE, UMI = UMI)
   
   # Define res range, create euclidean dist matrix and calculate silhouette coeffs
@@ -243,7 +243,7 @@ doItAll = function(
       seuratObj = seuratObj, 
       features = c(qcMetrics, "contamination_scores")
       ),
-    metricsSummary = makeSumStatsDF(seuratObj = seuratObj),
+    metricsSummary = makeSumStatsDF(seuratObj = seuratObj, seqPlatform = seqPlatform),
     libraryComplexity = plotRNAcomplexity(
       seuratObj = seuratObj, 
       cor = TRUE , 

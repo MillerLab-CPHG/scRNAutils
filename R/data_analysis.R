@@ -319,14 +319,20 @@ seuratSCTprocess = function(
 #' 
 #' @export
 #' 
-makeSumStatsDF = function(seuratObj) {
+makeSumStatsDF = function(seuratObj, seqPlatform) {
   metricsSummary = list(
     nUMIs = summary(seuratObj$nCount_RNA),
     nGenes = summary(seuratObj$nFeature_RNA),
     percentMT = summary(seuratObj$percent.mt),
     percentRibo = summary(seuratObj$percent.ribo),
     percentHb = summary(seuratObj$percent.hb))
+
+  if (!seqPlatform %in% c("10x", "Cel-seq2")) {
+    names(metricsSummary)[1] = "nReads" 
+  }
+  
   summaryDF = as.data.frame(do.call(rbind, metricsSummary))
+  
   return(summaryDF)
 }
 
