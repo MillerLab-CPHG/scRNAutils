@@ -4,7 +4,7 @@
 \alias{makeSumStatsDF}
 \title{Helper function to make a summary df from metadata vars}
 \usage{
-makeSumStatsDF(seuratObj)
+makeSumStatsDF(seuratObj, seqPlatform)
 }
 \arguments{
 \item{seuratObj}{A Seurat object with nUMI, nFeatures and other QC metrics}

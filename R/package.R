@@ -6,7 +6,7 @@
 #' doblets, ambient RNA, adaptive low-quality cell filtering using the MAD.
 #' Other add ons include estimation of the proper clustering resolution based 
 #' on the silhouette coefficients. The pipeline within this package will also
-#' output plots and stats not tipically included in the Seurat workflow such
+#' output plots and stats not typically included in the Seurat workflow such
 #' as complexity and N most highly expressed gene boxplots. We also facilitate 
 #' the conversion of the output Seurat object into .h5ad format so that your
 #' data will be compatible with python workflows. 

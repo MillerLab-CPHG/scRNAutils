@@ -2,9 +2,21 @@
 All notable changes to this project will be documented in this file. Here we
 will document changes to major releases only (not point relases). 
 
+## [0.0.3] -- 2024-04-29
+  - Args in main pipeline inherited from SCTprocess.
+  - Added helper function to automatically select N PCs explaining a given amount
+    of variance (default 90%).
+  - Made helpers and main pipeline platform-agnostic. Now user should
+    specificy whether data is from 10x or Smart-seq2 platforms.
+  - Added citation. 
+  - Add centroid calculation and distance computations as additional utility
+    functions.
+
 ## [0.0.2] -- 2024-02-05
-  - Added outlier-based detection of low quality cells
-  - Fixed bugs inherent to change to Seurat v5
-  - Added more informative QC plots including the top N most expressed genes
-  - Fixed issues with package function imports when running doItAll
-  - Implemented conversion of output Seurat object into Anndata object
+  - Added outlier-based detection of low quality cells.
+  - Fixed bugs inherent to change to Seurat v5.
+  - Added more informative QC plots including the top N most expressed genes.
+  - Fixed issues with package function imports when running doItAll.
+  - Implemented conversion of output Seurat object into Anndata object for RNA
+    and SCT assays.
+  

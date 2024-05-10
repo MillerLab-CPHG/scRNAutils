@@ -448,6 +448,7 @@ miller_continous_scale = function(style="points") {
 #'
 #' @param style A character string indicatin whether to plot points or bars.
 #' @param option A numeric indicating whether to plot the first or second option.
+#' @importFrom ggsci pal_npg
 #' 
 #' @return A ggplot discrete scale
 #' 
