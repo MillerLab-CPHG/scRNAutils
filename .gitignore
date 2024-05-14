@@ -2,3 +2,8 @@
 .RData
 .Rhistory
 *.Rproj
+
+# OS generated files
+.DS_Store
+.DS_Store?
+
