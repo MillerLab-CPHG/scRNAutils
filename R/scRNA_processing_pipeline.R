@@ -4,10 +4,9 @@
 #' 
 #' A function that will handle QC (doublet and ambient RNA removal) and robust processing for individual scRNA libraries.
 #' 
-#' @param countsMatrix sparse count matrix required as initial input. As of now, make it accept 
-#'  a filtered_feature_bc_matrix with a Seurat::Read10X or a txt file. Maybe this is better
-#'  handled out of the function since we'd also be dealing with h5 files. Maybe we can do this later
-#'  but not priority right now
+#' @param countsMatrix sparse count matrix required as initial input. As of now, it accepts 
+#'  a filtered_feature_bc_matrix that can be loaded with Seurat::Read10X or a txt file. Maybe this is better
+#'  handled out of the function since we'd also be dealing with h5 files. 
 #' @param minRes A numeric indicating lower boundary for silhouette analysis.
 #' @param maxRes A numeric indicating upper boundary for silhouette analysis.
 #' @param dblFindIter A numeric indicating how many iterations we need to run for getting consensus doublets.
@@ -17,7 +16,9 @@
 #' @param makeAnnData A boolean indicating whether we want to generate an .h5ad file for the processed Seurat object.
 #' @param annDataParentDir A character vector indicating the parent directory where we want to save the produced .h5ad object.
 #' @inheritParams seuratSCTprocess
-#' @return A list where the first object is the processed Seurat obj and a bunch of other QC stats and plots. 
+#' 
+#' @return A list where the first object is the processed Seurat obj and lots of other QC stats and plots. 
+#' 
 #' @export
 #' 
 doItAll = function(
@@ -37,7 +38,7 @@ doItAll = function(
   queryFeatures = NULL,
   ...
   ){
-  # Validate counts matrix input
+  # Validate counts matrix input.
   if (!methods::is(countsMatrix, "dgCMatrix")) {
     if(methods::is(countsMatrix, "Matrix")) {
       countsMatrix = as.sparse(countsMatrix)
@@ -236,6 +237,10 @@ doItAll = function(
   }
   # Convert to Anndata.
   if (makeAnnData) {
+    if (is.null(annDataParentDir)) {
+      message("makeAnndata set to TRUE but not dir path provided, writing to home dir...")
+      annDataParentDir = "~/scRNAutils_anndata_outs/"
+    }
     if (!dir.exists(annDataParentDir)) {
       message("Directory for output .h5ad file doesn't exist, creating one...")
       dir.create(annDataParentDir)

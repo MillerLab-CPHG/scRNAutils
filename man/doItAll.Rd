@@ -23,10 +23,9 @@ doItAll(
 )
 }
 \arguments{
-\item{countsMatrix}{sparse count matrix required as initial input. As of now, make it accept 
-a filtered_feature_bc_matrix with a Seurat::Read10X or a txt file. Maybe this is better
-handled out of the function since we'd also be dealing with h5 files. Maybe we can do this later
-but not priority right now}
+\item{countsMatrix}{sparse count matrix required as initial input. As of now, it accepts 
+a filtered_feature_bc_matrix that can be loaded with Seurat::Read10X or a txt file. Maybe this is better
+handled out of the function since we'd also be dealing with h5 files.}
 
 \item{libraryID}{A character indicating name of the sample.}
 
@@ -56,7 +55,7 @@ Set to FALSE in pre-processing round for doublet removal.}
 \item{queryFeatures}{A character vector with genes of interest for checking expression before and after QC.}
 }
 \value{
-A list where the first object is the processed Seurat obj and a bunch of other QC stats and plots.
+A list where the first object is the processed Seurat obj and lots of other QC stats and plots.
 }
 \description{
 A function that will handle QC (doublet and ambient RNA removal) and robust processing for individual scRNA libraries.

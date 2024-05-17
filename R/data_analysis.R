@@ -40,7 +40,7 @@ scDblFinderClusters = function(
       )
   }
   newSeurat = lapply(sampleSceDbl, as.Seurat)
-  # Get barcodes that were tagged as doublets
+  # Get barcodes that were tagged as doublets.
   res = lapply(newSeurat, 
                function(x){
                  filteredDf = dplyr::filter(x[[]], scDblFinder.class == "doublet")
@@ -49,7 +49,7 @@ scDblFinderClusters = function(
                  }
                )
   rm(sampleSce)
-  # Get consensus doublet calls between the desired number of runs
+  # Get consensus doublet calls.
   consensusDbl = Reduce(intersect, res[1:length(res)])
   return(consensusDbl)
 }
