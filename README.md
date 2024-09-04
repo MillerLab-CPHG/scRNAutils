@@ -21,7 +21,7 @@ The package can be installed from Github with the following:
 ```         
 if (!requireNamespace("remotes")) install.packages("remotes")
 library(remotes)
-remotes::install_github(MillerLab-CPHG/scRNAutils)
+remotes::install_github(MillerLab-CPHG/scRNAutils, ref = "dev")
 ```
 
 For more detailed documentation in how to run the main analysis pipeline as well as the expected inputs/outputs, please see the tutorial inside the `vignettes` folder.
