@@ -22,7 +22,7 @@ that contains sample ids.}
 \item{seuratObj:}{A Pre-processed seurat object with cell clusters annotations.}
 }
 \value{
-A vector of consensus doublet cell barcodes
+A vector of consensus doublet cell barcodes.
 }
 \description{
 Internal helper function to automate doublet removal workflow and update metadata.

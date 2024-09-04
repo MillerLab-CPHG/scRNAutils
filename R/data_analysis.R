@@ -10,7 +10,7 @@
 #' @param multisampleDataset A Logical indicating whether the processed dataset has multiple samples
 #' @param sampleIDs if multisample_dataset = TRUE, A character that refers to the metadata column
 #' that contains sample ids.
-#' @return A vector of consensus doublet cell barcodes
+#' @return A vector of consensus doublet cell barcodes.
 #' @export
 #' 
 scDblFinderClusters = function(
@@ -90,8 +90,8 @@ decontXremove = function(seuratObj) {
 #' @param libraryID A character indicating name of the sample.
 #' @param studyID A character indicating name of the study. 
 #' @param tissueSource A character indicating arterial bed of the library.
-#' @param nMADs A character indicating the number of Median Absolute Deviations (MADs)
-#'  to be used during joint metric filtering (nUMIs, nGenes, %Mito, %Ribo)
+#' @param nMADs A character indicating the number of Median Absolute Deviations to be used during joint metric filtering 
+#'  including nUMIs, nGenes, percent Mito and percent Ribo.
 #' @param minReads A numeric indicating min number of UMIs to keep.
 #' @param maxReads A numeric indicating max number of UMIs to keep.
 #' @param minFeatures A numeric indicating the minimum number of genes cells should express to be included.
@@ -130,7 +130,7 @@ seuratSCTprocess = function(
   diseaseStatus = NULL,
   age = NULL,
   sex = NULL,
-  race = NULL,
+  ancestry = NULL,
   seqPlatform = "10x",
   regressMitoRibo = FALSE,
   rmMitoRiboVarGenes = FALSE,
@@ -165,22 +165,24 @@ seuratSCTprocess = function(
   # Add required metadata variables 
   seuratObj$sample = libraryID
   seuratObj$study = studyID
-  seuratObj$tissueSource = tissueSource
-  seuratObj$seqPlatform = seqPlatform
+  seuratObj$tissue_source = tissueSource
+  seuratObj$seq_platform = seqPlatform
   
   # Optional metadata values
   seuratObj$age = ifelse(!is.null(age), age, NA)
   seuratObj$sex = ifelse(!is.null(sex), sex, NA)
-  seuratObj$race = ifelse(!is.null(race), race, NA)
-  seuratObj$diseaseStatus = ifelse(!is.null(diseaseStatus), diseaseStatus, NA)
+  seuratObj$ancestry = ifelse(!is.null(ancestry), ancestry, NA)
+  seuratObj$disease_status = ifelse(!is.null(diseaseStatus), diseaseStatus, NA)
 
   # Quality control
   # Reads mapping to Mito genes
   seuratObj[["percent.mt"]] = PercentageFeatureSet(seuratObj, pattern = "^MT-")
+  
   # Reads mapping to hemoglobin genes
   hbIndex = grep(rownames(seuratObj), pattern = "^HB[AB]")
   hbGenes = rownames(seuratObj)[hbIndex]
   seuratObj[["percent.hb"]] = PercentageFeatureSet(seuratObj, features = hbGenes)
+  
   # Reads mapping to ribosomal genes
   riboIndex = grep(
     rownames(seuratObj), 
@@ -192,7 +194,7 @@ seuratSCTprocess = function(
   # Filter cells
   if (seuratFilter) {
     if (setAutoThreshold) {
-      # MAD-based outlier identification; using 1 MAD below/above median
+      # MAD-based outlier identification.
       message("Setting MAD-based adaptive thresholds for cells filtering...")
       stats = cbind(
         log10(seuratObj$nCount_RNA),
@@ -232,7 +234,7 @@ seuratSCTprocess = function(
           percent.hb <= maxHbPercent
         )
       
-      # Remove cells with contamination scores 5-10 MADS above median
+      # Remove cells with contamination scores 7 MADS above median
       contScores = seuratObj[[]]$contamination_scores 
       contOutliersIdx = scater::isOutlier(
         metric = contScores, 
@@ -298,7 +300,7 @@ seuratSCTprocess = function(
   seuratObj = FindNeighbors(
     seuratObj, 
     reduction = "pca", 
-    dims = if(autoSelectPCs) 1:nPCs else 1:30, 
+    dims = if (autoSelectPCs) 1:nPCs else 1:30, 
     k.param = 20
     ) 
   seuratObj = RunUMAP(

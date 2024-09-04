@@ -7,6 +7,8 @@
 #' @param countsMatrix sparse count matrix required as initial input. As of now, it accepts 
 #'  a filtered_feature_bc_matrix that can be loaded with Seurat::Read10X or a txt file. Maybe this is better
 #'  handled out of the function since we'd also be dealing with h5 files. 
+#' @param computeSil A boolean indicating whether silhouette coefficients should be computed to determine
+#'  the resolution parameter for clustering. 
 #' @param minRes A numeric indicating lower boundary for silhouette analysis.
 #' @param maxRes A numeric indicating upper boundary for silhouette analysis.
 #' @param dblFindIter A numeric indicating how many iterations we need to run for getting consensus doublets.
@@ -30,8 +32,9 @@ doItAll = function(
   UMI = TRUE,
   dblFindIter = 3,
   seuratFilter = TRUE,
+  computeSil = TRUE,
   minRes = 0.2,
-  maxRes = 1.9,
+  maxRes = 0.8,
   clusteringAlg = "louvain",
   makeAnnData = FALSE,
   annDataParentDir = NULL,
@@ -80,25 +83,34 @@ doItAll = function(
   summaryDF = makeSumStatsDF(seuratObj = seuratObj, seqPlatform = seqPlatform)
   complexityPlot = plotRNAcomplexity(seuratObj = seuratObj, cor = TRUE, UMI = UMI)
   
-  # Define res range, create euclidean dist matrix and calculate silhouette coeffs.
-  message("--------------------------------------------------------------------------------
-  Calculating maximum avg silhouette score for the provided clustering resolutions
-  --------------------------------------------------------------------------------")
-  clusteringRes = seq(minRes, maxRes, by = 0.1)
-  prefiltSilcoeff = calcSilScores(seuratObj, clusteringRes)
-  
-  # Get mean sil_scores per resolution. 
-  if (!all(sapply(prefiltSilcoeff, is.null))) {
-    clusterResPre = maxAvgSil(prefiltSilcoeff)
-    message("The resolution with the maximum avg sil score for prefiltered dataset is ", 
-            clusterResPre)
+  # Compute silhouette scores. 
+  if (computeSil) {
+    # Define res range, create euclidean dist matrix and calculate silhouette coeffs.
+    message("-----------------------------------------------------------------------
+    Calculating maximum avg silhouette score for the provided clustering resolutions
+    --------------------------------------------------------------------------------")
+    clusteringRes = seq(minRes, maxRes, by = 0.1)
+    prefiltSilcoeff = calcSilScores(seuratObj, clusteringRes)
+    
+    # Get mean sil_scores per resolution. 
+    if (!all(sapply(prefiltSilcoeff, is.null))) {
+      clusterResPre = maxAvgSil(prefiltSilcoeff)
+      message("The resolution with the maximum avg sil score for prefiltered dataset is ", 
+              clusterResPre)
+    } else {
+      clusterResPre = minRes
+    }
   } else {
-    clusterResPre = minRes
+    message(
+      paste0("Bypassing silhouette scores computation. Setting resolution to ", maxRes)
+      )
+    clusterResPre = maxRes
   }
   
-  # Use the max avg sil value to cluster data.
+  # Cluster data and make pre-QC clusters plots. 
   seuratObj =  FindClusters(seuratObj, resolution = clusterResPre)
-  preQCclusters = DimPlot(seuratObj, reduction = "umap", label = TRUE)
+  preQCclusters = DimPlot(seuratObj, reduction = "umap", label = TRUE) + 
+    custom_theme()
   
   # Produce a list of whatever genes the user needs.
   if (!is.null(queryFeatures)) {
@@ -173,23 +185,33 @@ doItAll = function(
   nReads = seuratObj$nCount_RNA
   seuratObj$log10GenesPerReads = log10(nGenes) / log10(nReads)
 
-  # Define the most optimal resolution.
-  message("-------------------------------------------------------------------------------
-  Calculating maximum avg silhouette score for the provided clustering resolutions
-  --------------------------------------------------------------------------------")
-  filteredSilCoeff = calcSilScores(
-    seuratObj = seuratObj,
-    clusteringRes,
-    clusteringAlg = ifelse(clusteringAlg == "louvain", 
-                           "louvain", "leiden")
+  
+  if (computeSil) {
+    # Define the optimal clustering resolution.
+    message("-------------------------------------------------------------------------------
+    Calculating maximum avg silhouette score for the provided clustering resolutions
+    --------------------------------------------------------------------------------")
+    filteredSilCoeff = calcSilScores(
+      seuratObj = seuratObj,
+      clusteringRes,
+      clusteringAlg = ifelse(clusteringAlg == "louvain", "louvain", "leiden")
     )
-  if (!all(sapply(prefiltSilcoeff, is.null))) {
-    clusterResPos = maxAvgSil(filteredSilCoeff)
-    message("The resolution with the maximum avg sil score for the filtered data is ", 
-            clusterResPos)
+    if (!all(sapply(prefiltSilcoeff, is.null))) {
+      clusterResPos = maxAvgSil(filteredSilCoeff)
+      message("The resolution with the maximum avg sil score for the filtered data is ", 
+              clusterResPos)
+    } else {
+      clusterResPos = minRes
+    }
+    
   } else {
-    clusterResPos = minRes
+    message(
+      paste0("Bypassing silhouette scores computation. Setting resolution to ", maxRes)
+    )
+    clusterResPos = maxRes
   }
+  
+  # Cluster data. 
   message("Clustering data...")
   # 1 = Louvain; 4 = Leiden
   seuratObj = FindClusters(
@@ -199,7 +221,8 @@ doItAll = function(
   
   # Make QC plots.
   message("Producing output plots...")
-  postQCclusters = DimPlot(seuratObj, reduction = "umap", label = TRUE)
+  postQCclusters = DimPlot(seuratObj, reduction = "umap", label = TRUE) + 
+    custom_theme()
   percentPlots = plotFeatureUMAPList(seuratObj = seuratObj,
     queryFeatures = c(
       "percent.ribo", 

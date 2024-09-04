@@ -13,8 +13,9 @@ doItAll(
   UMI = TRUE,
   dblFindIter = 3,
   seuratFilter = TRUE,
+  computeSil = TRUE,
   minRes = 0.2,
-  maxRes = 1.9,
+  maxRes = 0.8,
   clusteringAlg = "louvain",
   makeAnnData = FALSE,
   annDataParentDir = NULL,
@@ -41,6 +42,9 @@ handled out of the function since we'd also be dealing with h5 files.}
 
 \item{seuratFilter}{A boolean indicating whether we wish to filter low quality cells. 
 Set to FALSE in pre-processing round for doublet removal.}
+
+\item{computeSil}{A boolean indicating whether silhouette coefficients should be computed to determine
+the resolution parameter for clustering.}
 
 \item{minRes}{A numeric indicating lower boundary for silhouette analysis.}
 

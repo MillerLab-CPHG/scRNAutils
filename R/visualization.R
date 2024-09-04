@@ -455,7 +455,7 @@ miller_continous_scale = function(style="points") {
 #' @export  
 #'
 miller_discrete_scale = function(style="points", option=1) { 
-  npg = pal_npg("nrc")(10)
+  npg = ggsci::pal_npg("nrc")(10)
   nature_scale = c(npg, "darkgoldenrod1")
   nature_scale2 = c("#6A3D9A", nature_scale[-1])
   

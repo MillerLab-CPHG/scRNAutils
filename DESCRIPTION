@@ -1,6 +1,6 @@
 Package: scRNAutils
 Title: Comprehensive Pipeline for scRNA-seq Data Analysis
-Version: 0.0.2
+Version: 0.0.3
 Date: 2024-03-12
 Description: A package providing a pipeline for scRNA data analysis and some 
     other useful functions for data analysis and visualization. 

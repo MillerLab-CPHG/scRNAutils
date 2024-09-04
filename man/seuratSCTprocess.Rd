@@ -19,7 +19,7 @@ seuratSCTprocess(
   diseaseStatus = NULL,
   age = NULL,
   sex = NULL,
-  race = NULL,
+  ancestry = NULL,
   seqPlatform = "10x",
   regressMitoRibo = FALSE,
   rmMitoRiboVarGenes = FALSE,
@@ -37,8 +37,8 @@ seuratSCTprocess(
 
 \item{tissueSource}{A character indicating arterial bed of the library.}
 
-\item{nMADs}{A character indicating the number of Median Absolute Deviations (MADs)
-to be used during joint metric filtering (nUMIs, nGenes, %Mito, %Ribo)}
+\item{nMADs}{A character indicating the number of Median Absolute Deviations to be used during joint metric filtering 
+including nUMIs, nGenes, percent Mito and percent Ribo.}
 
 \item{minReads}{A numeric indicating min number of UMIs to keep.}
 
@@ -58,8 +58,6 @@ to be used during joint metric filtering (nUMIs, nGenes, %Mito, %Ribo)}
 
 \item{sex}{A character vector indicating sex of the subject.}
 
-\item{race}{A character vector indicating race of the subject.}
-
 \item{seqPlatform}{A character indicating the sequencing platform}
 
 \item{regressMitoRibo}{A boolean indicating whether to regress out Mitochondrial variance or not.}
@@ -74,6 +72,8 @@ Set to FALSE in pre-processing round for doublet removal.}
 low quality cells. This approach uses the Median Absolute Deviation (MAD).}
 
 \item{autoSelectPCs}{A boolean indicating whether to determine the number of PCs in a data-driven way.}
+
+\item{race}{A character vector indicating race of the subject.}
 }
 \value{
 A seurat object that has been SCT normalized, nearest neighbors graph and UMAP embeddings.
