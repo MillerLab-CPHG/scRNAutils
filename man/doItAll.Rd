@@ -10,6 +10,7 @@ doItAll(
   studyID,
   tissueSource,
   seqPlatform = "10x",
+  seqWorflow = "cell",
   UMI = TRUE,
   dblFindIter = 3,
   seuratFilter = TRUE,
@@ -17,6 +18,7 @@ doItAll(
   minRes = 0.2,
   maxRes = 0.8,
   clusteringAlg = "louvain",
+  renameCells = FALSE,
   makeAnnData = FALSE,
   annDataParentDir = NULL,
   queryFeatures = NULL,
@@ -34,7 +36,7 @@ handled out of the function since we'd also be dealing with h5 files.}
 
 \item{tissueSource}{A character indicating arterial bed of the library.}
 
-\item{seqPlatform}{A character indicating the sequencing platform}
+\item{seqPlatform}{A character indicating the sequencing platform.}
 
 \item{UMI}{A boolean indicating whether the read type is a UMI.}
 
@@ -51,6 +53,8 @@ the resolution parameter for clustering.}
 \item{maxRes}{A numeric indicating upper boundary for silhouette analysis.}
 
 \item{clusteringAlg}{A character vector indicating whether to perform louvain or leiden clustering.}
+
+\item{renameCells}{A boolean indicating if cells should be renamed by appending the library ID as prefix.}
 
 \item{makeAnnData}{A boolean indicating whether we want to generate an .h5ad file for the processed Seurat object.}
 

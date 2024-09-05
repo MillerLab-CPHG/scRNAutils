@@ -96,13 +96,16 @@ decontXremove = function(seuratObj) {
 #' @param maxReads A numeric indicating max number of UMIs to keep.
 #' @param minFeatures A numeric indicating the minimum number of genes cells should express to be included.
 #' @param maxFeatures A numeric indicating the maximum number of genes cells should express to be included.
+#' @param minMtPercent A numeric indicating the min percentage of reads mapped to the mito genome.
 #' @param maxMtPercent A numeric indicating the max percentage of reads mapped to the mito genome. 
+#' @param minRiboPercent A numeric indicating the min percentage of reads mapped to ribosomal genes.
 #' @param maxHbPercent A numeric indicating the max percentage of reads mapped to hemoglobin genes.
 #' @param diseaseStatus A character indicating the disease status of the library (e.g., non-lesion, lesion). 
 #' @param age A character vector indicating age of the subject.
 #' @param sex A character vector indicating sex of the subject. 
 #' @param race A character vector indicating race of the subject.
-#' @param seqPlatform A character indicating the sequencing platform
+#' @param seqPlatform A character indicating the sequencing platform.
+#' @param seqWorkflow A character indicating the sequencing workflow, one of cell or nucleus. 
 #' @param regressMitoRibo A boolean indicating whether to regress out Mitochondrial variance or not.
 #' @param rmMitoRiboVarGenes A boolean indicating whether we should remove Mito and Ribo genes from 
 #'  the set of highly variable features.  
@@ -125,20 +128,23 @@ seuratSCTprocess = function(
   maxReads = 20000,
   minFeatures = 200,
   maxFeatures = 4000,
+  minMtPercent = 0.1,
   maxMtPercent = 20,
+  minRiboPercent = 0.1, 
   maxHbPercent = 1,
   diseaseStatus = NULL,
   age = NULL,
   sex = NULL,
   ancestry = NULL,
   seqPlatform = "10x",
+  seqWorkflow = "cell",
   regressMitoRibo = FALSE,
   rmMitoRiboVarGenes = FALSE,
   seuratFilter = FALSE,
   setAutoThreshold = TRUE,
   autoSelectPCs = TRUE
   ){
-  # Define sample, study IDs and tissue source as core metadata values. 
+  # Define core metadata values. 
   if (is.null(libraryID)) { 
     stop("Library ID is missing!")
   }
@@ -155,18 +161,22 @@ seuratSCTprocess = function(
     stop("Sequencing platform is missing!")
   }
   
-  # Make sure to add valid platform
+  # Make sure to add valid platform and seq workflow.
+  workflows = c("cell", "nucleus")
   platforms = c("10x", "Smart-seq2", "Cel-seq2")
   tryCatch(
     {
-      seqPlatform = match.arg(arg = seqPlatform, choices = platforms) 
+      seqPlatform = match.arg(arg = seqPlatform, choices = platforms)
+      seqWorkflow = match.arg(arg = seqWorkflow, choices = workflows)
     }, error = function(e) message(e)
   )
+  
   # Add required metadata variables 
   seuratObj$sample = libraryID
   seuratObj$study = studyID
   seuratObj$tissue_source = tissueSource
   seuratObj$seq_platform = seqPlatform
+  seuratObj$seq_workflow = seqWorkflow
   
   # Optional metadata values
   seuratObj$age = ifelse(!is.null(age), age, NA)
@@ -258,6 +268,16 @@ seuratSCTprocess = function(
         subset = nFeature_RNA >= minFeatures 
         & nCount_RNA >= minReads
         )
+    }
+    
+    # For cell workflow, discard cells with 0 MT or Ribo expression.
+    if (seqWorkflow == "cell") {
+      message("Filtering cells with 0% MT or Ribo expression...")
+      seuratObj = subset(
+        seuratObj,
+        subset = percent.mt >= minMtPercent &
+          percent.ribo >= minRiboPercent
+      )
     }
   }
   # Calculate cell cycle scores

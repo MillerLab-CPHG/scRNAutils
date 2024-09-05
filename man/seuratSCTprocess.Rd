@@ -14,13 +14,16 @@ seuratSCTprocess(
   maxReads = 20000,
   minFeatures = 200,
   maxFeatures = 4000,
+  minMtPercent = 0.1,
   maxMtPercent = 20,
+  minRiboPercent = 0.1,
   maxHbPercent = 1,
   diseaseStatus = NULL,
   age = NULL,
   sex = NULL,
   ancestry = NULL,
   seqPlatform = "10x",
+  seqWorkflow = "cell",
   regressMitoRibo = FALSE,
   rmMitoRiboVarGenes = FALSE,
   seuratFilter = FALSE,
@@ -48,7 +51,11 @@ including nUMIs, nGenes, percent Mito and percent Ribo.}
 
 \item{maxFeatures}{A numeric indicating the maximum number of genes cells should express to be included.}
 
+\item{minMtPercent}{A numeric indicating the min percentage of reads mapped to the mito genome.}
+
 \item{maxMtPercent}{A numeric indicating the max percentage of reads mapped to the mito genome.}
+
+\item{minRiboPercent}{A numeric indicating the min percentage of reads mapped to ribosomal genes.}
 
 \item{maxHbPercent}{A numeric indicating the max percentage of reads mapped to hemoglobin genes.}
 
@@ -58,7 +65,9 @@ including nUMIs, nGenes, percent Mito and percent Ribo.}
 
 \item{sex}{A character vector indicating sex of the subject.}
 
-\item{seqPlatform}{A character indicating the sequencing platform}
+\item{seqPlatform}{A character indicating the sequencing platform.}
+
+\item{seqWorkflow}{A character indicating the sequencing workflow, one of cell or nucleus.}
 
 \item{regressMitoRibo}{A boolean indicating whether to regress out Mitochondrial variance or not.}
 

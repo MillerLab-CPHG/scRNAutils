@@ -15,6 +15,7 @@
 #' @param clusteringAlg A character vector indicating whether to perform louvain or leiden clustering.
 #' @param queryFeatures A character vector with genes of interest for checking expression before and after QC.
 #' @param UMI A boolean indicating whether the read type is a UMI.
+#' @param renameCells A boolean indicating if cells should be renamed by appending the library ID as prefix. 
 #' @param makeAnnData A boolean indicating whether we want to generate an .h5ad file for the processed Seurat object.
 #' @param annDataParentDir A character vector indicating the parent directory where we want to save the produced .h5ad object.
 #' @inheritParams seuratSCTprocess
@@ -29,6 +30,7 @@ doItAll = function(
   studyID,
   tissueSource,
   seqPlatform = "10x",
+  seqWorflow = "cell",
   UMI = TRUE,
   dblFindIter = 3,
   seuratFilter = TRUE,
@@ -36,6 +38,7 @@ doItAll = function(
   minRes = 0.2,
   maxRes = 0.8,
   clusteringAlg = "louvain",
+  renameCells = FALSE, 
   makeAnnData = FALSE,
   annDataParentDir = NULL,
   queryFeatures = NULL,
@@ -184,8 +187,8 @@ doItAll = function(
   nGenes = seuratObj$nFeature_RNA
   nReads = seuratObj$nCount_RNA
   seuratObj$log10GenesPerReads = log10(nGenes) / log10(nReads)
-
   
+  # Compute silhouette coefficients.
   if (computeSil) {
     # Define the optimal clustering resolution.
     message("-------------------------------------------------------------------------------
@@ -229,6 +232,16 @@ doItAll = function(
       "percent.mt",
       "contamination_scores")
     )
+  
+  # Rename cells
+  if (renameCells) {
+    message("Saving original cell barcodes...")
+    seuratObj$original_cell_bc = Cells(seuratObj)
+    
+    message("Appending library ID to cell barcodes...")
+    newCellNames = paste0(libraryID, "_", Cells(seuratObj))
+    seuratObj = Seurat::RenameCells(seuratObj, new.names = newCellNames)
+  }
   
   # Save post-QC plots and stats.
   postQCcols = ncol(seuratObj)
